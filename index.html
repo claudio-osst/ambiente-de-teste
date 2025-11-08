@@ -1,0 +1,2622 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>DriverFinance Pro</title>
+    <meta name="description" content="Controle de faturamento e despesas para motoristas de app.">
+    <meta name="theme-color" content="#00ff88">
+    <link rel="manifest" href="manifest.json">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+            return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+            if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+                try {
+                    var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                    var firstSheetName = workbook.SheetNames[0];
+                    var worksheet = workbook.Sheets[firstSheetName];
+                    var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                    var filteredData = jsonData.filter(row => row.some(filledCell));
+                    var headerRowIndex = filteredData.findIndex((row, index) =>
+                        row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                    );
+                    if (headerRowIndex === -1 || headerRowIndex > 25) {
+                        headerRowIndex = 0;
+                    }
+                    var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex));
+                    csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                    return csv;
+                } catch (e) {
+                    console.error(e);
+                    return "";
+                }
+            }
+            return gk_fileData[filename] || "";
+        }
+    </script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        :root {
+            --font-size-small: 0.875rem;
+            --font-size-medium: 1rem;
+            --font-size-large: 1.125rem;
+            --font-size-extra-large: 1.25rem;
+            --font-size-xx-large: 1.5rem;
+            --font-size-xxx-large: 1.75rem;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+            transition: all 0.3s ease;
+            -webkit-user-select: none;
+            user-select: none;
+            font-size: var(--font-size-medium);
+        }
+        body[data-font-size="small"] { font-size: var(--font-size-small); }
+        body[data-font-size="medium"] { font-size: var(--font-size-medium); }
+        body[data-font-size="large"] { font-size: var(--font-size-large); }
+        body[data-font-size="extra-large"] { font-size: var(--font-size-extra-large); }
+        body[data-font-size="xx-large"] { font-size: var(--font-size-xx-large); }
+        body[data-font-size="xxx-large"] { font-size: var(--font-size-xxx-large); }
+        [data-theme="dark"] {
+            --bg-primary: #1a1a1a;
+            --bg-secondary: #2d2d2d;
+            --text-primary: #ffffff;
+            --text-secondary: #cccccc;
+            --card-bg: #252525;
+            --border: #444444;
+            --accent: #00ff88;
+            --accent-light: #33ffaa;
+            --accent-lighter: #66ffbb;
+            --accent-lightest: #99ffcc;
+        }
+        [data-theme="light"] {
+            --bg-primary: #ffffff;
+            --bg-secondary: #f5f5f5;
+            --text-primary: #333333;
+            --text-secondary: #666666;
+            --card-bg: #ffffff;
+            --border: #e0e0e0;
+            --accent: #007bff;
+            --accent-light: #4d9bff;
+            --accent-lighter: #80b3ff;
+            --accent-lightest: #b3ccff;
+        }
+        [data-theme="blue"] {
+            --bg-primary: #0d1b2a;
+            --bg-secondary: #1b263b;
+            --text-primary: #e0e1dd;
+            --text-secondary: #a9b4c2;
+            --card-bg: #16213e;
+            --border: #3a506b;
+            --accent: #58a6ff;
+            --accent-light: #7bb8ff;
+            --accent-lighter: #9ecaff;
+            --accent-lightest: #c1dcff;
+        }
+        [data-theme="green"] {
+            --bg-primary: #0f1f0f;
+            --bg-secondary: #1f2f1f;
+            --text-primary: #d4edda;
+            --text-secondary: #a9c3b0;
+            --card-bg: #1e3e1e;
+            --border: #406040;
+            --accent: #28a745;
+            --accent-light: #4fb966;
+            --accent-lighter: #76cb87;
+            --accent-lightest: #9ddca8;
+        }
+        [data-theme="orange"] {
+            --bg-primary: #2c1f0f;
+            --bg-secondary: #3d2a1a;
+            --text-primary: #f8e6e6;
+            --text-secondary: #d4b8a0;
+            --card-bg: #3c2f2f;
+            --border: #5c4a3a;
+            --accent: #fd7e14;
+            --accent-light: #fe9743;
+            --accent-lighter: #feb072;
+            --accent-lightest: #ffcaa1;
+        }
+        [data-theme="purple"] {
+            --bg-primary: #1a0f2f;
+            --bg-secondary: #2a1f3f;
+            --text-primary: #e2d9f3;
+            --text-secondary: #c0b3d6;
+            --card-bg: #2f1f4f;
+            --border: #4a395f;
+            --accent: #6f42c1;
+            --accent-light: #8b64d1;
+            --accent-lighter: #a786e1;
+            --accent-lightest: #c3a8f1;
+        }
+        header { 
+            background: var(--bg-secondary); 
+            padding: 1rem; 
+            text-align: center; 
+            border-bottom: 1px solid var(--border); 
+            position: relative;
+        }
+        header h1 { color: var(--accent); margin-bottom: 0.5rem; }
+        
+        .menu-toggle {
+            display: none;
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: var(--accent);
+            border: 3px solid var(--bg-primary);
+            color: var(--bg-primary);
+            font-size: 1.3rem;
+            cursor: pointer;
+            z-index: 1000;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            transition: all 0.3s ease;
+        }
+        .menu-toggle:hover {
+            transform: scale(1.1);
+            box-shadow: 0 6px 16px rgba(0,0,0,0.4);
+        }
+        
+        nav { 
+            display: flex; 
+            justify-content: center; 
+            background: var(--bg-secondary); 
+            border-bottom: 1px solid var(--border);
+            transition: all 0.3s ease;
+        }
+        nav button { 
+            background: none; 
+            border: none; 
+            padding: 1rem 1.5rem; 
+            color: var(--text-primary); 
+            cursor: pointer; 
+            transition: all 0.3s; 
+            position: relative;
+        }
+        nav button:hover { 
+            background: var(--accent); 
+            color: var(--bg-primary); 
+        }
+        nav button[onclick="showSection('custo-km')"] {
+            transition: all 0.3s;
+        }
+        nav button[onclick="showSection('custo-km')"]:hover,
+        nav button[onclick="showSection('custo-km')"].active {
+            background: #FFD700 !important;
+            color: #000000 !important;
+        }
+        nav button.active { 
+            background: var(--accent); 
+            color: var(--bg-primary);
+            font-weight: bold;
+        }
+        nav button[onclick*="custo-km"]:hover {
+            background: #FFD700 !important;
+            color: #000000 !important;
+        }
+        nav button[onclick*="custo-km"].active {
+            background: #FFD700 !important;
+            color: #000000 !important;
+        }
+        nav button.active::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80%;
+            height: 3px;
+            background: var(--bg-primary);
+            border-radius: 2px;
+        }
+        
+        section { display: none; padding: 1rem; max-width: 1200px; margin: 0 auto; }
+        section.active { display: block; }
+        .card { 
+            background: var(--card-bg); 
+            border-radius: 12px; 
+            padding: 1.5rem; 
+            margin-bottom: 1rem; 
+            border: 1px solid var(--border); 
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: transform 0.2s ease;
+        }
+        .card:hover {
+            transform: translateY(-2px);
+        }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; }
+        form label { display: block; margin-bottom: 0.5rem; color: var(--text-primary); font-weight: bold; }
+        
+        form input, form select { 
+            width: 100%; 
+            padding: 0.75rem; 
+            border: 2px solid var(--accent);
+            border-radius: 8px; 
+            background: var(--bg-primary); 
+            color: var(--text-primary);
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+        form input:focus, form select:focus {
+            outline: none;
+            box-shadow: 0 0 0 3px var(--accent-light);
+        }
+        
+        button { 
+            background: var(--accent); 
+            color: var(--bg-primary); 
+            border: none; 
+            padding: 0.75rem 1.5rem; 
+            border-radius: 8px; 
+            cursor: pointer; 
+            font-weight: bold; 
+            transition: all 0.3s;
+            font-size: 1rem;
+        }
+        button:hover { 
+            opacity: 0.9; 
+            transform: translateY(-1px);
+        }
+        button.danger { background: #ff4444; color: var(--bg-primary); }
+        ul { list-style: none; }
+        li { padding: 0.5rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; color: var(--text-primary); }
+        canvas { max-width: 100%; height: 300px; }
+        progress { width: 100%; height: 20px; }
+        .meta-diaria, .meta-planejamento, .meta-semanal, .meta-mensal { 
+            background: var(--card-bg); 
+            padding: 1.5rem; 
+            border-radius: 12px; 
+            margin-bottom: 1.5rem; 
+            text-align: center; 
+        }
+        
+        .meta-diaria input, .meta-planejamento input, .meta-semanal input, .meta-mensal input { 
+            width: 150px; 
+            margin: 0 10px; 
+            color: var(--text-primary); 
+            font-size: 2.5rem; 
+            font-weight: bold; 
+            text-align: center; 
+            background: var(--bg-primary);
+            border: 3px solid var(--accent);
+            border-radius: 8px;
+            padding: 0.5rem;
+        }
+        
+        .meta-diaria progress { margin-top: 10px; }
+        .card p.dia { font-size: 1.5rem; color: var(--accent); }
+        .card p.sem { font-size: 1.3rem; color: var(--accent-light); }
+        .card p.mes { font-size: 1.1rem; color: var(--accent-lighter); }
+        .card p.ano { font-size: 0.9rem; color: var(--accent-lightest); }
+        #metaNotification {
+            display: none;
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--accent);
+            color: var(--bg-primary);
+            padding: 1rem 2rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            z-index: 1000;
+            font-weight: bold;
+            font-size: 1.1rem;
+            max-width: 90%;
+            text-align: center;
+        }
+        #metaNotification.show { 
+            display: block; 
+            animation: fadeInOut 4s forwards; 
+        }
+        @keyframes fadeInOut {
+            0% { opacity: 0; transform: translateX(-50%) translateY(-20px); }
+            10% { opacity: 1; transform: translateX(-50%) translateY(0); }
+            90% { opacity: 1; transform: translateX(-50%) translateY(0); }
+            100% { opacity: 0; transform: translateX(-50%) translateY(-20px); }
+        }
+        .filter-container { margin-bottom: 1rem; display: flex; gap: 1rem; flex-wrap: wrap; }
+        .filter-container select, .filter-container input[type="date"] { 
+            padding: 0.75rem; 
+            border-radius: 8px; 
+            border: 2px solid var(--accent); 
+            background: var(--bg-primary); 
+            color: var(--text-primary); 
+        }
+        input[type="range"] { width: 100%; margin: 0.5rem 0; accent-color: var(--accent); }
+        .meta-planejamento output { display: inline-block; margin-left: 0.5rem; font-weight: bold; color: var(--accent); }
+        
+        .chart-container {
+            background: white !important;
+            padding: 1rem;
+            border-radius: 8px;
+            border: 2px solid var(--border);
+            height: 400px;
+        }
+        
+        .meta-inputs {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin: 1rem 0;
+        }
+        .meta-input-group {
+            flex: 1;
+            min-width: 200px;
+        }
+        .meta-input-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: bold;
+            color: var(--text-primary);
+        }
+        .meta-input-group input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid var(--accent);
+            border-radius: 8px;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            font-size: 1.1rem;
+            text-align: center;
+        }
+        
+        .button-column {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        .button-column button {
+            width: 100%;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            z-index: 2000;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background: var(--card-bg);
+            padding: 2rem;
+            border-radius: 12px;
+            max-width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            width: 600px;
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            color: var(--text-primary);
+            cursor: pointer;
+        }
+        
+        .history-item {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 0.5rem;
+            transition: all 0.3s ease;
+        }
+        .history-item:hover {
+            border-color: var(--accent);
+        }
+        .history-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+        .history-date {
+            font-weight: bold;
+            color: var(--accent);
+        }
+        .history-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+        .history-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 0.5rem;
+            font-size: 0.9rem;
+        }
+        .history-detail {
+            text-align: center;
+            padding: 0.25rem;
+            background: var(--bg-primary);
+            border-radius: 4px;
+        }
+        
+        .calendar-container {
+            background: var(--card-bg);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+        .calendar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 0.25rem;
+        }
+        .calendar-day {
+            padding: 0.5rem;
+            text-align: center;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .calendar-day:hover {
+            background: var(--accent);
+            color: var(--bg-primary);
+        }
+        .calendar-day.has-data {
+            background: var(--accent-light);
+            color: var(--bg-primary);
+            font-weight: bold;
+        }
+        .calendar-day.selected {
+            background: var(--accent);
+            color: var(--bg-primary);
+            transform: scale(1.1);
+        }
+        .calendar-weekday {
+            text-align: center;
+            font-weight: bold;
+            padding: 0.5rem;
+            color: var(--text-secondary);
+        }
+        
+        .custom-apps-container, .custom-expenses-container {
+            margin: 1rem 0;
+            padding: 1rem;
+            background: var(--bg-primary);
+            border-radius: 8px;
+            border: 1px solid var(--border);
+        }
+
+        [data-theme="light"] .custom-apps-container,
+        [data-theme="light"] .custom-expenses-container {
+            background: #f8f9fa !important;
+            border: 1px solid #e9ecef !important;
+        }
+
+        [data-theme="dark"] .custom-apps-container,
+        [data-theme="dark"] .custom-expenses-container {
+            background: #2a2a2a !important;
+            border: 1px solid #444444 !important;
+        }
+
+        [data-theme="blue"] .custom-apps-container,
+        [data-theme="blue"] .custom-expenses-container {
+            background: #1a263b !important;
+            border: 1px solid #3a506b !important;
+        }
+
+        [data-theme="green"] .custom-apps-container,
+        [data-theme="green"] .custom-expenses-container {
+            background: #1f2f1f !important;
+            border: 1px solid #406040 !important;
+        }
+
+        [data-theme="orange"] .custom-apps-container,
+        [data-theme="orange"] .custom-expenses-container {
+            background: #3d2a1a !important;
+            border: 1px solid #5c4a3a !important;
+        }
+
+        [data-theme="purple"] .custom-apps-container,
+        [data-theme="purple"] .custom-expenses-container {
+            background: #2a1f3f !important;
+            border: 1px solid #4a395f !important;
+        }
+
+        .custom-input-group {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+            align-items: flex-end;
+        }
+        .custom-input-group input {
+            flex: 1;
+        }
+        .custom-items-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+        }
+        .custom-item-tag {
+            background: var(--accent-light);
+            color: var(--bg-primary);
+            padding: 0.5rem 0.75rem;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            border: 1px solid var(--accent);
+        }
+        .remove-item {
+            background: none;
+            border: none;
+            color: var(--bg-primary);
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 1.1rem;
+            padding: 0;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+        }
+        .remove-item:hover {
+            background: rgba(255,255,255,0.3);
+        }
+        
+        .dynamic-inputs-container {
+            margin: 1rem 0;
+        }
+        .dynamic-input-group {
+            margin-bottom: 1rem;
+        }
+        .dynamic-input-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: var(--text-primary);
+            font-weight: bold;
+        }
+        .dynamic-input-group input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid var(--accent);
+            border-radius: 8px;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            font-size: 1rem;
+        }
+        
+        @media (max-width: 768px) { 
+            .grid { grid-template-columns: 1fr; } 
+            .menu-toggle { display: flex; align-items: center; justify-content: center; }
+            nav { 
+                flex-direction: column;
+                position: fixed;
+                top: 0;
+                left: -100%;
+                width: 80%;
+                height: 100vh;
+                background: var(--bg-secondary);
+                z-index: 999;
+                transition: left 0.3s ease;
+                padding-top: 4rem;
+            }
+            nav.mobile-open {
+                left: 0;
+            }
+            nav button { 
+                flex: none; 
+                padding: 1rem; 
+                font-size: 1.1rem; 
+                text-align: left;
+                border-bottom: 1px solid var(--border);
+            }
+            nav button.active::after {
+                display: none;
+            }
+            .meta-diaria input, .meta-planejamento input, .meta-semanal input, .meta-mensal input { 
+                width: 100%; 
+                margin: 10px 0; 
+                font-size: 2rem;
+            }
+            .filter-container { flex-direction: column; }
+            .button-column-mobile {
+                display: flex;
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+            .button-column-mobile button {
+                width: 100%;
+            }
+            .history-details {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .chart-container {
+                height: 350px;
+                padding: 0.5rem;
+            }
+            .custom-input-group {
+                flex-direction: column;
+            }
+            .custom-input-group input {
+                width: 100%;
+            }
+        }
+        .theme-btn:hover { transform: scale(1.2); box-shadow: 0 0 8px rgba(0, 0, 0, 0.3); }
+        .theme-btn.active { border: 2px solid var(--text-primary); box-shadow: 0 0 10px var(--accent); }
+        .btn-custo-km:hover,
+        .btn-custo-km.active {
+            background: #FFD700 !important;
+            color: #000000 !important;
+        }
+
+        .update-list {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .update-item {
+            display: flex;
+            gap: 1rem;
+            padding: 1rem;
+            background: var(--bg-primary);
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            align-items: flex-start;
+        }
+
+        .update-badge {
+            background: var(--accent);
+            color: white;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            white-space: nowrap;
+        }
+
+        .update-content {
+            flex: 1;
+        }
+
+        .update-content h4 {
+            margin-bottom: 0.5rem;
+            color: var(--text-primary);
+        }
+
+        .update-content p {
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+        }
+
+        .update-content small {
+            color: var(--text-secondary);
+            opacity: 0.7;
+        }
+
+        #novidades button {
+            color: #000000 !important;
+            font-weight: bold;
+        }
+
+        #novidades .card[style*="background: linear-gradient"] h2,
+        #novidades .card[style*="background: linear-gradient"] p {
+            color: #000000 !important;
+        }
+
+        [data-theme="dark"] #novidades .card[style*="background: linear-gradient"] h2,
+        [data-theme="dark"] #novidades .card[style*="background: linear-gradient"] p {
+            color: #ffffff !important;
+        }
+
+        .aba-custo-km {
+            background: none;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            color: var(--text-primary);
+            cursor: pointer;
+            border-radius: 6px;
+            transition: all 0.3s ease;
+            font-weight: 500;
+        }
+        .aba-custo-km:hover {
+            background: var(--accent-light);
+            color: var(--bg-primary);
+        }
+        .aba-custo-km.ativa {
+            background: var(--accent);
+            color: var(--bg-primary);
+            font-weight: bold;
+        }
+
+        button[onclick="adicionarTransacao()"],
+        button[onclick="adicionarDespesaPersonalizada()"] {
+            background: #8A2BE2 !important;
+            color: white !important;
+            border: none !important;
+        }
+
+        @media (max-width: 480px) {
+            header h1 { font-size: 1.5rem; } 
+            .card { padding: 1rem; } 
+            button { padding: 0.75rem 1rem; font-size: 0.9rem; } 
+            .theme-btn { width: 25px; height: 25px; }
+            .modal-content {
+                padding: 1rem;
+                width: 95%;
+            }
+            .menu-toggle {
+                top: 0.5rem;
+                right: 0.5rem;
+                width: 45px;
+                height: 45px;
+                font-size: 1.1rem;
+            }
+            .chart-container {
+                height: 300px;
+            }
+        }
+        .ajuste-btn { font-size: 1.2rem; font-weight: bold; padding: 0.2rem 0.6rem; margin: 0 0.3rem; border-radius: 4px; }
+        .range-container { display: flex; align-items: center; gap: 0.5rem; }
+        .range-container input[type="range"] { flex: 1; }
+        .theme-selector { display: flex; justify-content: center; gap: 0.5rem; margin-top: 1rem; }
+        .theme-btn { width: 30px; height: 30px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; transition: transform 0.3s ease, border 0.3s ease, box-shadow 0.3s ease; }
+    </style>
+</head>
+<body data-theme="dark">
+    <header>
+        <h1>DriverFinance Pro</h1>
+        <p>Controle avançado de faturamento e despesas para motoristas de app</p>
+    </header>
+
+    <button class="menu-toggle" onclick="toggleMobileMenu()">☰</button>
+
+    <nav id="mainNav">
+        <button onclick="showSection('painel')" class="active">Painel</button>
+        <button onclick="showSection('custo-km')" class="btn-custo-km">Custo KM</button>
+        <button onclick="showSection('transacoes')">Transações</button>
+        <button onclick="showSection('estatisticas')">Estatísticas</button>
+        <button onclick="showSection('imposto')">Imposto de Renda</button>
+        <button onclick="showSection('historico')">Histórico</button>
+        <button onclick="showSection('novidades')">Novidades</button>
+        <button onclick="showSection('configuracoes')">Configurações</button>
+    </nav>
+
+    <main>
+        <section id="painel" class="active">
+            <div id="metaNotification">Transação adicionada com sucesso!</div>
+            <div class="meta-timer card" style="text-align:center; margin-bottom: 1.5rem;">
+                <h2>Timer de Jornada</h2>
+                <div id="timerDisplay" style="font-size:2rem; font-weight:bold; margin:10px 0;">00:00:00</div>
+                <div>
+                    <button id="startTimer">Iniciar</button>
+                    <button id="pauseTimer">Pausar</button>
+                    <button id="resetTimer">Finalizar</button>
+                </div>
+            </div>
+            
+            <div class="meta-diaria card">
+                <h2>Meta Diária Pretendida</h2>
+                <label>Meta Diária (R$): <input type="text" id="metaDiaria" oninput="aplicarMascaraFantasma(this); salvarMetaDiaria()" placeholder="0,00"></label>
+                <progress id="progressoDiario" value="0" max="100"></progress>
+                <p id="progressoTextoDiario">0.0% atingido (R$ 0.00 / R$ 400,00)</p>
+            </div>
+
+            <div class="meta-planejamento card">
+                <h2>Planejamento de Meta</h2>
+                <div class="meta-inputs">
+                    <div class="meta-input-group">
+                        <label>Faturamento Mínimo por KM (R$):</label>
+                        <input type="text" id="metaPorKm" oninput="aplicarMascaraFantasma(this); calcularPlanejamento()" placeholder="0,00">
+                    </div>
+                    <div class="meta-input-group">
+                        <label>Faturamento Mínimo por Hora (R$):</label>
+                        <input type="text" id="metaPorHora" oninput="aplicarMascaraFantasma(this); calcularPlanejamento()" placeholder="0,00">
+                    </div>
+                </div>
+                <div style="margin-top: 1rem; padding: 1rem; background: var(--bg-primary); border-radius: 8px;">
+                    <h4 style="color: var(--accent); margin-bottom: 0.5rem;">Para atingir a meta diária:</h4>
+                    <p>Kilômetros necessários: <span id="kmNecessarios">0.0</span></p>
+                    <p>Horas necessárias: <span id="horasNecessarias">0.0</span></p>
+                    <p>Corridas necessárias (estimado): <span id="corridasNecessarias">0</span></p>
+                </div>
+            </div>
+
+            <div class="meta-semanal card">
+                <h2>Meta Semanal</h2>
+                <label>Meta Semanal (R$): <input type="text" id="metaSemanal" oninput="aplicarMascaraFantasma(this); salvarMetaSemanal()" placeholder="0,00"></label>
+                <progress id="progressoSemanal" value="0" max="100"></progress>
+                <p id="progressoTextoSemanal">0.0% atingido (R$ 0.00 / R$ 1.500,00)</p>
+            </div>
+
+            <div class="meta-mensal card">
+                <h2>Meta Mensal</h2>
+                <label>Meta Mensal (R$): <input type="text" id="metaMensal" oninput="aplicarMascaraFantasma(this); salvarMetaMensal()" placeholder="0,00"></label>
+                <progress id="progressoMensal" value="0" max="100"></progress>
+                <p id="progressoTextoMensal">0.0% atingido (R$ 0.00 / R$ 6.000,00)</p>
+            </div>
+
+            <div class="grid">
+                <div class="card">
+                    <h2>Ganhos</h2>
+                    <p class="dia">Dia: <span id="ganhosHoje">R$ 0.00</span></p>
+                    <p class="sem">Sem.: <span id="ganhosSemana">R$ 0.00</span></p>
+                    <p class="mes">Mês: <span id="ganhosMes">R$ 0.00</span></p>
+                    <p class="ano">Ano: <span id="ganhosAno">R$ 0.00</span></p>
+                </div>
+                <div class="card">
+                    <h2>Despesas</h2>
+                    <p class="dia">Dia: <span id="despesasHoje">R$ 0.00</span></p>
+                    <p class="sem">Sem.: <span id="despesasSemana">R$ 0.00</span></p>
+                    <p class="mes">Mês: <span id="despesasMes">R$ 0.00</span></p>
+                    <p class="ano">Ano: <span id="despesasAno">R$ 0.00</span></p>
+                </div>
+                <div class="card">
+                    <h2>Lucro Líquido</h2>
+                    <p class="dia">Dia: <span id="lucroHoje">R$ 0.00</span></p>
+                    <p class="sem">Sem.: <span id="lucroSemana">R$ 0.00</span></p>
+                    <p class="mes">Mês: <span id="lucroMes">R$ 0.00</span></p>
+                    <p class="ano">Ano: <span id="lucroAno">R$ 0.00</span></p>
+                </div>
+                <div class="card">
+                    <h2>Média por Viagem</h2>
+                    <p class="dia">Dia: <span id="mediaViagemHoje">R$ 0.00</span></p>
+                    <p class="sem">Sem.: <span id="mediaViagemSemana">R$ 0.00</span></p>
+                    <p class="mes">Mês: <span id="mediaViagemMes">R$ 0.00</span></p>
+                    <p class="ano">Ano: <span id="mediaViagemAno">R$ 0.00</span></p>
+                </div>
+                <div class="card">
+                    <h2>Total de Corridas</h2>
+                    <p class="dia">Dia: <span id="corridasHoje">0</span></p>
+                    <p class="sem">Sem.: <span id="corridasSemana">0</span></p>
+                    <p class="mes">Mês: <span id="corridasMes">0</span></p>
+                    <p class="ano">Ano: <span id="corridasAno">0</span></p>
+                </div>
+                <div class="card">
+                    <h2>Faturamento/Hora</h2>
+                    <p class="dia">Dia: <span id="faturamentoHoraHoje">R$ 0.00</span></p>
+                    <p class="sem">Sem.: <span id="faturamentoHoraSemana">R$ 0.00</span></p>
+                    <p class="mes">Mês: <span id="faturamentoHoraMes">R$ 0.00</span></p>
+                    <p class="ano">Ano: <span id="faturamentoHoraAno">R$ 0.00</span></p>
+                </div>
+                <div class="card">
+                    <h2>Faturamento/KM</h2>
+                    <p class="dia">Dia: <span id="faturamentoKmHoje">R$ 0.00</span></p>
+                    <p class="sem">Sem.: <span id="faturamentoKmSemana">R$ 0.00</span></p>
+                    <p class="mes">Mês: <span id="faturamentoKmMes">R$ 0.00</span></p>
+                    <p class="ano">Ano: <span id="faturamentoKmAno">R$ 0.00</span></p>
+                </div>
+                <div class="card">
+                    <h2>Margem de Lucro</h2>
+                    <p class="dia">Dia: <span id="margemLucroHoje">0.0%</span></p>
+                    <p class="sem">Sem.: <span id="margemLucroSemana">0.0%</span></p>
+                    <p class="mes">Mês: <span id="margemLucroMes">0.0%</span></p>
+                    <p class="ano">Ano: <span id="margemLucroAno">0.0%</span></p>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>Evolução do Lucro Líquido (Últimos 30 Dias)</h2>
+                <div class="chart-container">
+                    <canvas id="lucroChart"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <section id="transacoes">
+            <div class="card">
+                <h2>Adicionar Transação</h2>
+                <form id="transacaoForm">
+                    <h3 style="color: var(--accent);">Faturamento</h3>
+                    <div class="grid">
+                        <div>
+                            <label>Uber (R$): <input type="text" id="uber" onblur="formatarMoeda(this)" placeholder="0,00"></label>
+                            <label>99 (R$): <input type="text" id="noventaenove" onblur="formatarMoeda(this)" placeholder="0,00"></label>
+                            <label>InDrive (R$): <input type="text" id="indrive" onblur="formatarMoeda(this)" placeholder="0,00"></label>
+                            <label>Particular (R$): <input type="text" id="particular" onblur="formatarMoeda(this)" placeholder="0,00"></label>
+                            <div class="dynamic-inputs-container" id="appsInputsContainer"></div>
+                        </div>
+                    </div>
+
+                    <div class="custom-apps-container">
+                        <h4 style="color: var(--accent); margin-bottom: 1rem;">Outros Aplicativos</h4>
+                        <div class="custom-input-group">
+                            <input type="text" id="novoAppInput" placeholder="Nome do app (ex: Cabify, Bolt...)" style="flex:1;">
+                            <button type="button" onclick="adicionarAppPersonalizado()">+ Adicionar App</button>
+                        </div>
+                        <div class="custom-items-list" id="customAppsList"></div>
+                    </div>
+
+                    <h3 style="color: var(--accent);">Despesas</h3>
+                    <div class="grid">
+                        <div>
+                            <label>Combustível:</label>
+                            <select id="combustivelTipo">
+                                <option value="gasolina">Gasolina</option>
+                                <option value="etanol">Etanol</option>
+                                <option value="gnv">GNV</option>
+                            </select>
+                            <label>Valor (R$): <input type="text" id="combustivelValor" onblur="formatarMoeda(this)" placeholder="0,00"></label>
+                        </div>
+                        <div>
+                            <label>Aluguel do Carro (R$): <input type="text" id="aluguel" onblur="formatarMoeda(this)" placeholder="0,00"></label>
+                            <label>Alimentação (R$): <input type="text" id="alimentacao" onblur="formatarMoeda(this)" placeholder="0,00"></label>
+                            <div class="dynamic-inputs-container" id="expensesInputsContainer"></div>
+                        </div>
+                    </div>
+
+                    <div class="custom-expenses-container">
+                        <h4 style="color: var(--accent); margin-bottom: 1rem;">Outras Despesas</h4>
+                        <div class="custom-input-group">
+                            <input type="text" id="novaDespesaInput" placeholder="Nome da despesa (ex: Lavagem, Estacionamento...)" style="flex:1;">
+                            <button type="button" onclick="adicionarDespesaPersonalizada()">+ Adicionar Despesa</button>
+                        </div>
+                        <div class="custom-items-list" id="customExpensesList"></div>
+                    </div>
+
+                    <div class="card" style="margin-top: 1rem; background: var(--bg-secondary);">
+                        <h3 style="color: var(--accent); margin-bottom: 1rem;">📊 Métricas de Trabalho</h3>
+                        <div class="grid">
+                            <div>
+                                <label>Quilometragem (KM): <input type="number" id="quilometragem" step="0.01" min="0"></label>
+                            </div>
+                            <div>
+                                <label>Total de Corridas: <input type="number" id="totalCorridas" min="0"></label>
+                            </div>
+                            <div>
+                                <label>Horas Trabalhadas: <input type="number" id="horasTrabalhadas" step="0.01" min="0"></label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 1.5rem; display: flex; gap: 1rem; flex-wrap: wrap;">
+                        <button type="button" onclick="adicionarTransacao()">Adicionar Transação</button>
+                        <button type="button" onclick="limparForm()" class="danger">Limpar</button>
+                    </div>
+                </form>
+            </div>
+        </section>
+
+        <section id="estatisticas">
+            <div class="card">
+                <h2>Filtro de Período</h2>
+                <div class="filter-container">
+                    <select id="periodFilter">
+                        <option value="all">Tudo</option>
+                        <option value="today">Hoje</option>
+                        <option value="last7days">Últimos 7 Dias</option>
+                        <option value="last30days">Últimos 30 Dias</option>
+                        <option value="currentMonth">Mês Atual</option>
+                        <option value="currentYear">Ano Atual</option>
+                        <option value="custom">Personalizado</option>
+                    </select>
+                    <div id="customDateRange" style="display: none;">
+                        <label>Início: <input type="date" id="dateStart"></label>
+                        <label>Fim: <input type="date" id="dateEnd"></label>
+                        <button type="button" onclick="applyCustomFilter()">Aplicar</button>
+                    </div>
+                </div>
+            </div>
+            <div class="card">
+                <h2>Distribuição de Ganhos</h2>
+                <div class="chart-container">
+                    <canvas id="ganhosChart"></canvas>
+                </div>
+            </div>
+            <div class="card">
+                <h2>Despesas por Categoria</h2>
+                <div class="chart-container">
+                    <canvas id="despesasChart"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <section id="historico">
+            <div class="card">
+                <h2>Últimas 15 Transações</h2>
+                <div id="ultimasTransacoesList"></div>
+            </div>
+
+            <div class="card">
+                <h2>Buscar Histórico por Data</h2>
+                <div class="calendar-container">
+                    <div class="calendar-header">
+                        <button onclick="changeCalendarMonth(-1)">‹</button>
+                        <h3 id="calendarMonth">Mês Ano</h3>
+                        <button onclick="changeCalendarMonth(1)">›</button>
+                    </div>
+                    <div class="calendar-grid" id="calendarGrid">
+                        <div class="calendar-weekday">Dom</div>
+                        <div class="calendar-weekday">Seg</div>
+                        <div class="calendar-weekday">Ter</div>
+                        <div class="calendar-weekday">Qua</div>
+                        <div class="calendar-weekday">Qui</div>
+                        <div class="calendar-weekday">Sex</div>
+                        <div class="calendar-weekday">Sáb</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h2>Transações do Dia Selecionado</h2>
+                <div id="historicoList"></div>
+            </div>
+        </section>
+
+        <section id="imposto">
+            <div class="card" style="text-align: center; background: linear-gradient(135deg, var(--accent), var(--accent-light));">
+                <h2>📊 Imposto de Renda</h2>
+                <p>Cálculo automatizado para declaração</p>
+            </div>
+
+            <div class="card">
+                <h2>Resumo Anual para IR</h2>
+                <div class="grid">
+                    <div class="card">
+                        <h3>Ganhos Totais</h3>
+                        <p style="font-size: 2rem; color: var(--accent);" id="irGanhosTotais">R$ 0,00</p>
+                    </div>
+                    <div class="card">
+                        <h3>Despesas Totais</h3>
+                        <p style="font-size: 2rem; color: #ff4444;" id="irDespesasTotais">R$ 0,00</p>
+                    </div>
+                    <div class="card">
+                        <h3>Lucro Tributável</h3>
+                        <p style="font-size: 2rem; color: var(--accent-light);" id="irLucroTributavel">R$ 0,00</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>Cálculo do Imposto</h2>
+                <div class="grid">
+                    <div class="card">
+                        <h3>Alíquota Efetiva</h3>
+                        <p style="font-size: 1.5rem; color: var(--accent);" id="irAliquota">0,0%</p>
+                        <small>Baseado no lucro anual</small>
+                    </div>
+                    <div class="card">
+                        <h3>Imposto a Pagar</h3>
+                        <p style="font-size: 1.5rem; color: #ff4444;" id="irImpostoPagar">R$ 0,00</p>
+                        <small>Valor estimado para declaração</small>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>Relatório para Declaração</h2>
+                <div style="background: var(--bg-primary); padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
+                    <h4 style="color: var(--accent); margin-bottom: 1rem;">Dados para o IRPF:</h4>
+                    <div style="text-align: left;">
+                        <p><strong>Rendimentos de Aluguel:</strong> <span id="irRendimentosAluguel">R$ 0,00</span></p>
+                        <p><strong>Despesas Operacionais:</strong> <span id="irDespesasOperacionais">R$ 0,00</span></p>
+                        <p><strong>Rendimento Líquido:</strong> <span id="irRendimentoLiquido">R$ 0,00</span></p>
+                    </div>
+                </div>
+                <button onclick="exportarRelatorioIR()" style="background: #28a745;">📄 Exportar Relatório IR</button>
+            </div>
+        </section>
+
+        <section id="novidades">
+            <div class="card" style="text-align: center; background: linear-gradient(135deg, var(--accent), var(--accent-light));">
+                <h2>🚀 Novidades do DriverFinance Pro</h2>
+                <p>Fique por dentro das atualizações e recursos exclusivos!</p>
+            </div>
+
+            <div class="card">
+                <h2>📢 Últimas Atualizações</h2>
+                <div class="update-list">
+                    <div class="update-item">
+                        <div class="update-badge">NOVO</div>
+                        <div class="update-content">
+                            <h4>Calculadora de Imposto de Renda</h4>
+                            <p>Agora você pode calcular automaticamente o imposto de renda devido com base nos seus ganhos anuais.</p>
+                            <small>Lançado em: 15/12/2024</small>
+                        </div>
+                    </div>
+                    
+                    <div class="update-item">
+                        <div class="update-badge">MELHORIA</div>
+                        <div class="update-content">
+                            <h4>Planejamento de Meta Simplificado</h4>
+                            <p>Reorganizamos o planejamento de metas para ser mais intuitivo.</p>
+                            <small>Atualizado em: 10/12/2024</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="custo-km">
+            <iframe src="calc-custo-km.html" style="width: 100%; height: 800px; border: none; border-radius: 8px;"></iframe>
+        </section>
+
+        <section id="configuracoes">
+            <div class="card">
+                <h2>Temas</h2>
+                <div class="theme-selector">
+                    <button class="theme-btn" data-theme="dark" style="background: #00ff88;" title="Escuro"></button>
+                    <button class="theme-btn" data-theme="light" style="background: #007bff;" title="Claro"></button>
+                    <button class="theme-btn" data-theme="blue" style="background: #58a6ff;" title="Azul Profundo"></button>
+                    <button class="theme-btn" data-theme="green" style="background: #28a745;" title="Verde Suave"></button>
+                    <button class="theme-btn" data-theme="orange" style="background: #fd7e14;" title="Laranja Vibrante"></button>
+                    <button class="theme-btn" data-theme="purple" style="background: #6f42c1;" title="Roxo Noturno"></button>
+                </div>
+            </div>
+            <div class="card">
+                <h2>Ajustes de Fonte</h2>
+                <label for="fontSizeSlider">Tamanho da Fonte: <span id="fontSizeValue">Médio</span></label>
+                <input type="range" id="fontSizeSlider" min="0" max="5" value="1" step="1">
+            </div>
+            <div class="card">
+                <h2>Exportar/Importar</h2>
+                <div class="button-column-mobile">
+                    <button type="button" onclick="exportarJSON()">Exportar JSON</button>
+                    <button type="button" onclick="exportarCSV()">Exportar CSV</button>
+                    <button type="button" onclick="exportarPDF()">Exportar PDF</button>
+                    <input type="file" id="importFile" accept=".json" style="display: none;">
+                    <button type="button" onclick="document.getElementById('importFile').click();">Importar JSON</button>
+                    <select id="importMode">
+                        <option value="merge">Mesclar</option>
+                        <option value="replace">Substituir</option>
+                    </select>
+                    <button type="button" onclick="confirmarImportacao()">Confirmar Importar</button>
+                </div>
+            </div>
+            <div class="card">
+                <h2>Backup e Limpeza</h2>
+                <div class="button-column-mobile">
+                    <button type="button" onclick="downloadBackup()">Download Backup JSON</button>
+                    <button type="button" class="danger" onclick="apagarTudo()">Apagar Todos os Dados</button>
+                </div>
+            </div>
+            <p>Instale como PWA para uso offline (requer HTTPS).</p>
+        </section>
+
+        <footer style="text-align: center; padding: 1rem; background: var(--bg-secondary); border-top: 1px solid var(--border);">
+            <p>DriverFinance Pro | desenvolvido por Claudio Gomes</p>
+        </footer>
+    </main>
+
+    <div id="editModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Editar Transação</h2>
+                <button class="modal-close" onclick="fecharModalEdicao()">×</button>
+            </div>
+            <form id="editTransacaoForm">
+                <h3 style="color: var(--accent);">Faturamento</h3>
+                <div class="grid">
+                    <div>
+                        <label>Uber (R$): <input type="text" id="editUber" placeholder="0,00" oninput="formatarMoeda(this)"></label>
+                        <label>99 (R$): <input type="text" id="editNoventaenove" placeholder="0,00" oninput="formatarMoeda(this)"></label>
+                        <label>InDrive (R$): <input type="text" id="editIndrive" placeholder="0,00" oninput="formatarMoeda(this)"></label>
+                        <label>Particular (R$): <input type="text" id="editParticular" placeholder="0,00" oninput="formatarMoeda(this)"></label>
+                        <div id="editAppsInputsContainer"></div>
+                    </div>
+                    <div>
+                        <label>Quilometragem (KM): <input type="number" id="editQuilometragem" step="0.01" min="0"></label>
+                        <label>Total de Corridas: <input type="number" id="editTotalCorridas" min="0"></label>
+                        <label>Horas Trabalhadas: <input type="number" id="editHorasTrabalhadas" step="0.01" min="0"></label>
+                    </div>
+                </div>
+                <h3 style="color: var(--accent);">Despesas</h3>
+                <div class="grid">
+                    <div>
+                        <label>Combustível:</label>
+                        <select id="editCombustivelTipo">
+                            <option value="gasolina">Gasolina</option>
+                            <option value="etanol">Etanol</option>
+                            <option value="gnv">GNV</option>
+                        </select>
+                        <label>Valor (R$): <input type="text" id="editCombustivelValor" placeholder="0,00" oninput="formatarMoeda(this)"></label>
+                    </div>
+                    <div>
+                        <label>Aluguel do Carro (R$): <input type="text" id="editAluguel" placeholder="0,00" oninput="formatarMoeda(this)"></label>
+                        <label>Alimentação (R$): <input type="text" id="editAlimentacao" placeholder="0,00" oninput="formatarMoeda(this)"></label>
+                        <div id="editExpensesInputsContainer"></div>
+                    </div>
+                </div>
+                <div style="margin-top: 1.5rem; display: flex; gap: 1rem;">
+                    <button type="button" onclick="salvarEdicao()">Salvar Alterações</button>
+                    <button type="button" onclick="fecharModalEdicao()">Cancelar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.3/jspdf.plugin.autotable.min.js"></script>
+    <script>
+        let transacoes = JSON.parse(localStorage.getItem('transacoes')) || [];
+        let charts = {};
+        let metaDiaria = parseFloat(localStorage.getItem('metaDiaria')) || 0;
+        let metaPorKm = parseFloat(localStorage.getItem('metaPorKm')) || 0;
+        let metaPorHora = parseFloat(localStorage.getItem('metaPorHora')) || 0;
+        let metaSemanal = parseFloat(localStorage.getItem('metaSemanal')) || 0;
+        let metaMensal = parseFloat(localStorage.getItem('metaMensal')) || 0;
+        let customApps = JSON.parse(localStorage.getItem('customApps')) || [];
+        let customExpenses = JSON.parse(localStorage.getItem('customExpenses')) || [];
+        let currentCalendarMonth = new Date().getMonth();
+        let currentCalendarYear = new Date().getFullYear();
+        let selectedDate = null;
+        let editingIndex = -1;
+
+        let timerInterval;
+        let startTime = localStorage.getItem('timerStartTimeDF') ? parseInt(localStorage.getItem('timerStartTimeDF')) : null;
+        let elapsedSeconds = parseInt(localStorage.getItem('timerElapsedDF')) || 0;
+        let timerRunning = localStorage.getItem('timerRunningDF') === 'true';
+
+        window.addEventListener('load', () => {
+            const savedTheme = localStorage.getItem('theme') || 'dark';
+            document.body.dataset.theme = savedTheme;
+            aplicarTema();
+            
+            document.querySelectorAll('.theme-btn').forEach(button => {
+                button.addEventListener('click', () => {
+                    const theme = button.dataset.theme;
+                    document.body.dataset.theme = theme;
+                    localStorage.setItem('theme', theme);
+                    document.querySelectorAll('.theme-btn').forEach(btn => btn.classList.remove('active'));
+                    button.classList.add('active');
+                    aplicarTema();
+                    if (document.getElementById('painel').classList.contains('active')) {
+                        atualizarPainel();
+                    }
+                });
+            });
+            
+            const activeBtn = document.querySelector(`.theme-btn[data-theme="${savedTheme}"]`);
+            if (activeBtn) activeBtn.classList.add('active');
+            
+            const fontSizeMap = ["small", "medium", "large", "extra-large", "xx-large", "xxx-large"];
+            const fontSizeTextMap = ["Pequeno", "Médio", "Grande", "Extra Grande", "Extra Extra Grande", "Extra Extra Extra Grande"];
+            const savedFontSize = localStorage.getItem('fontSize') || "medium";
+            const savedFontSizeIndex = fontSizeMap.indexOf(savedFontSize);
+            const fontSizeSlider = document.getElementById("fontSizeSlider");
+            const fontSizeValueSpan = document.getElementById("fontSizeValue");
+            
+            if (fontSizeSlider && fontSizeValueSpan) {
+                fontSizeSlider.value = savedFontSizeIndex !== -1 ? savedFontSizeIndex : 1;
+                function updateFontSize(value) {
+                    const size = fontSizeMap[value];
+                    const text = fontSizeTextMap[value];
+                    document.body.dataset.fontSize = size;
+                    localStorage.setItem('fontSize', size);
+                    fontSizeValueSpan.textContent = text;
+                }
+                updateFontSize(parseInt(fontSizeSlider.value));
+                fontSizeSlider.addEventListener("input", (e) => updateFontSize(parseInt(e.target.value)));
+            }
+            
+            atualizarListaAppsPersonalizados();
+            atualizarListaDespesasPersonalizadas();
+            atualizarInputsApps();
+            atualizarInputsDespesas();
+            calcularPlanejamento();
+            
+            const periodFilter = document.getElementById('periodFilter');
+            const customDateRange = document.getElementById('customDateRange');
+            if (periodFilter && customDateRange) {
+                periodFilter.addEventListener('change', (e) => {
+                    customDateRange.style.display = e.target.value === 'custom' ? 'flex' : 'none';
+                    if (e.target.value !== 'custom') inicializarGraficos();
+                });
+            }
+            
+            document.getElementById('startTimer').onclick = startTimer;
+            document.getElementById('pauseTimer').onclick = pauseTimer;
+            document.getElementById('resetTimer').onclick = resetTimer;
+            updateTimerDisplay();
+            if (timerRunning) {
+                timerInterval = setInterval(updateTimerDisplay, 1000);
+            }
+            
+            atualizarCalendario();
+            atualizarUltimasTransacoes();
+            atualizarTudo();
+            
+            const camposMoeda = ['uber', 'noventaenove', 'indrive', 'particular', 'combustivelValor', 'aluguel', 'alimentacao'];
+            camposMoeda.forEach(id => {
+                const input = document.getElementById(id);
+                if (input) {
+                    input.addEventListener('input', function() {
+                        formatarMoeda(this);
+                    });
+                }
+            });
+        });
+
+        function aplicarMascaraFantasma(input) {
+            formatarMoeda(input);
+        }
+
+        function formatarMoeda(input) {
+            let valor = input.value.replace(/\D/g, '');
+            if (valor === '') {
+                input.value = '';
+                return;
+            }
+            valor = valor.padStart(3, '0');
+            let reais = valor.slice(0, -2);
+            let centavos = valor.slice(-2);
+            reais = reais.replace(/^0+/, '') || '0';
+            reais = reais.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+            input.value = reais + ',' + centavos;
+        }
+
+        function parseValorMonetario(valor) {
+            if (!valor) return 0;
+            return parseFloat(valor.replace(/\./g, '').replace(',', '.')) || 0;
+        }
+
+        function adicionarAppPersonalizado() {
+            const input = document.getElementById('novoAppInput');
+            const nomeApp = input.value.trim();
+            if (!nomeApp) {
+                mostrarNotificacao('Digite o nome do aplicativo');
+                return;
+            }
+            if (customApps.includes(nomeApp)) {
+                mostrarNotificacao('Este app já foi adicionado');
+                return;
+            }
+            customApps.push(nomeApp);
+            localStorage.setItem('customApps', JSON.stringify(customApps));
+            input.value = '';
+            atualizarListaAppsPersonalizados();
+            atualizarInputsApps();
+            mostrarNotificacao(`App "${nomeApp}" adicionado com sucesso!`);
+        }
+
+        function removerAppPersonalizado(nomeApp) {
+            customApps = customApps.filter(app => app !== nomeApp);
+            localStorage.setItem('customApps', JSON.stringify(customApps));
+            atualizarListaAppsPersonalizados();
+            atualizarInputsApps();
+            mostrarNotificacao(`App "${nomeApp}" removido`);
+        }
+
+        function atualizarListaAppsPersonalizados() {
+            const container = document.getElementById('customAppsList');
+            container.innerHTML = '';
+            customApps.forEach(app => {
+                const tag = document.createElement('div');
+                tag.className = 'custom-item-tag';
+                tag.innerHTML = `${app}<button class="remove-item" onclick="removerAppPersonalizado('${app}')">×</button>`;
+                container.appendChild(tag);
+            });
+        }
+
+        function atualizarInputsApps() {
+            const container = document.getElementById('appsInputsContainer');
+            container.innerHTML = '';
+            customApps.forEach(app => {
+                const inputGroup = document.createElement('div');
+                inputGroup.className = 'dynamic-input-group';
+                inputGroup.innerHTML = `<label>${app} (R$):</label><input type="text" id="app_${app.replace(/\s+/g, '_')}" placeholder="0,00">`;
+                container.appendChild(inputGroup);
+                const input = document.getElementById(`app_${app.replace(/\s+/g, '_')}`);
+                input.oninput = function() { formatarMoeda(this); };
+            });
+        }
+
+        function adicionarDespesaPersonalizada() {
+            const input = document.getElementById('novaDespesaInput');
+            const nomeDespesa = input.value.trim();
+            if (!nomeDespesa) {
+                mostrarNotificacao('Digite o nome da despesa');
+                return;
+            }
+            if (customExpenses.includes(nomeDespesa)) {
+                mostrarNotificacao('Esta despesa já foi adicionada');
+                return;
+            }
+            customExpenses.push(nomeDespesa);
+            localStorage.setItem('customExpenses', JSON.stringify(customExpenses));
+            input.value = '';
+            atualizarListaDespesasPersonalizadas();
+            atualizarInputsDespesas();
+            mostrarNotificacao(`Despesa "${nomeDespesa}" adicionada com sucesso!`);
+        }
+
+        function removerDespesaPersonalizada(nomeDespesa) {
+            customExpenses = customExpenses.filter(despesa => despesa !== nomeDespesa);
+            localStorage.setItem('customExpenses', JSON.stringify(customExpenses));
+            atualizarListaDespesasPersonalizadas();
+            atualizarInputsDespesas();
+            mostrarNotificacao(`Despesa "${nomeDespesa}" removida`);
+        }
+
+        function atualizarListaDespesasPersonalizadas() {
+            const container = document.getElementById('customExpensesList');
+            container.innerHTML = '';
+            customExpenses.forEach(despesa => {
+                const tag = document.createElement('div');
+                tag.className = 'custom-item-tag';
+                tag.innerHTML = `${despesa}<button class="remove-item" onclick="removerDespesaPersonalizada('${despesa}')">×</button>`;
+                container.appendChild(tag);
+            });
+        }
+
+        function atualizarInputsDespesas() {
+            const container = document.getElementById('expensesInputsContainer');
+            container.innerHTML = '';
+            customExpenses.forEach(despesa => {
+                const inputGroup = document.createElement('div');
+                inputGroup.className = 'dynamic-input-group';
+                inputGroup.innerHTML = `<label>${despesa} (R$):</label><input type="text" id="despesa_${despesa.replace(/\s+/g, '_')}" onblur="formatarMoeda(this)" placeholder="0,00">`;
+                container.appendChild(inputGroup);
+            });
+        }
+
+        function salvarMetaDiaria() {
+            metaDiaria = parseValorMonetario(document.getElementById('metaDiaria').value);
+            localStorage.setItem('metaDiaria', metaDiaria);
+            calcularPlanejamento();
+            atualizarProgressoMetas();
+        }
+
+        function salvarMetaSemanal() {
+            metaSemanal = parseValorMonetario(document.getElementById('metaSemanal').value);
+            localStorage.setItem('metaSemanal', metaSemanal);
+            atualizarProgressoMetas();
+        }
+
+        function salvarMetaMensal() {
+            metaMensal = parseValorMonetario(document.getElementById('metaMensal').value);
+            localStorage.setItem('metaMensal', metaMensal);
+            atualizarProgressoMetas();
+        }
+
+        function calcularPlanejamento() {
+            metaPorKm = parseValorMonetario(document.getElementById('metaPorKm').value) || 2.00;
+            metaPorHora = parseValorMonetario(document.getElementById('metaPorHora').value) || 50;
+            localStorage.setItem('metaPorKm', metaPorKm);
+            localStorage.setItem('metaPorHora', metaPorHora);
+            
+            const kmNecessarios = metaDiaria > 0 && metaPorKm > 0 ? metaDiaria / metaPorKm : 0.0;
+            const horasNecessarias = metaDiaria > 0 && metaPorHora > 0 ? metaDiaria / metaPorHora : 0.0;
+            
+            const ultimasTransacoes = transacoes.slice(0, 30);
+            const totalCorridas = ultimasTransacoes.reduce((sum, t) => sum + t.totalCorridas, 0);
+            const totalKm = ultimasTransacoes.reduce((sum, t) => sum + t.quilometragem, 0);
+            const totalHoras = ultimasTransacoes.reduce((sum, t) => sum + t.horasTrabalhadas, 0);
+            
+            const mediaKmPorCorrida = totalCorridas > 0 ? totalKm / totalCorridas : 10.0;
+            const mediaHorasPorCorrida = totalCorridas > 0 ? totalHoras / totalCorridas : 0.5;
+            
+            const corridasPorKm = kmNecessarios > 0 && mediaKmPorCorrida > 0 ? Math.ceil(kmNecessarios / mediaKmPorCorrida) : 0;
+            const corridasPorHora = horasNecessarias > 0 && mediaHorasPorCorrida > 0 ? Math.ceil(horasNecessarias / mediaHorasPorCorrida) : 0;
+            const corridasNecessarias = Math.max(corridasPorKm, corridasPorHora);
+
+            document.getElementById('kmNecessarios').textContent = kmNecessarios.toFixed(1);
+            document.getElementById('horasNecessarias').textContent = horasNecessarias.toFixed(1);
+            document.getElementById('corridasNecessarias').textContent = corridasNecessarias;
+        }
+
+        function atualizarProgressoMetas() {
+            const transacoesHoje = transacoes.filter(t => 
+                new Date(t.data).toDateString() === new Date().toDateString()
+            );
+            const lucroHoje = transacoesHoje.reduce((sum, t) => sum + (t.ganhosTotal - t.despesasTotal), 0);
+            const percentualDiario = metaDiaria > 0 ? Math.min((lucroHoje / metaDiaria) * 100, 100) : 0;
+            
+            document.getElementById('progressoDiario').value = percentualDiario;
+            document.getElementById('progressoTextoDiario').textContent = 
+                `${percentualDiario.toFixed(1)}% atingido (R$ ${lucroHoje.toFixed(2)} / R$ ${metaDiaria.toFixed(2)})`;
+
+            const inicioSemana = new Date();
+            inicioSemana.setDate(inicioSemana.getDate() - inicioSemana.getDay());
+            const transacoesSemana = transacoes.filter(t => new Date(t.data) >= inicioSemana);
+            const lucroSemana = transacoesSemana.reduce((sum, t) => sum + (t.ganhosTotal - t.despesasTotal), 0);
+            const percentualSemana = metaSemanal > 0 ? Math.min((lucroSemana / metaSemanal) * 100, 100) : 0;
+            
+            document.getElementById('progressoSemanal').value = percentualSemana;
+            document.getElementById('progressoTextoSemanal').textContent = 
+                `${percentualSemana.toFixed(1)}% atingido (R$ ${lucroSemana.toFixed(2)} / R$ ${metaSemanal.toFixed(2)})`;
+
+            const inicioMes = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+            const transacoesMes = transacoes.filter(t => new Date(t.data) >= inicioMes);
+            const lucroMes = transacoesMes.reduce((sum, t) => sum + (t.ganhosTotal - t.despesasTotal), 0);
+            const percentualMes = metaMensal > 0 ? Math.min((lucroMes / metaMensal) * 100, 100) : 0;
+            
+            document.getElementById('progressoMensal').value = percentualMes;
+            document.getElementById('progressoTextoMensal').textContent = 
+                `${percentualMes.toFixed(1)}% atingido (R$ ${lucroMes.toFixed(2)} / R$ ${metaMensal.toFixed(2)})`;
+        }
+
+        function adicionarTransacao() {
+            const novaTransacao = {
+                data: new Date().toISOString(),
+                uber: parseValorMonetario(document.getElementById('uber').value),
+                noventaenove: parseValorMonetario(document.getElementById('noventaenove').value),
+                indrive: parseValorMonetario(document.getElementById('indrive').value),
+                particular: parseValorMonetario(document.getElementById('particular').value),
+                quilometragem: parseFloat(document.getElementById('quilometragem').value) || 0,
+                totalCorridas: parseInt(document.getElementById('totalCorridas').value) || 0,
+                horasTrabalhadas: parseFloat(document.getElementById('horasTrabalhadas').value) || 0.0,
+                combustivel: { 
+                    tipo: document.getElementById('combustivelTipo').value, 
+                    valor: parseValorMonetario(document.getElementById('combustivelValor').value)
+                },
+                aluguel: parseValorMonetario(document.getElementById('aluguel').value),
+                alimentacao: parseValorMonetario(document.getElementById('alimentacao').value),
+                ganhosTotal: 0.00,
+                despesasTotal: 0.00
+            };
+            
+            customApps.forEach(app => {
+                const inputId = `app_${app.replace(/\s+/g, '_')}`;
+                novaTransacao[app] = parseValorMonetario(document.getElementById(inputId)?.value);
+            });
+            
+            customExpenses.forEach(despesa => {
+                const inputId = `despesa_${despesa.replace(/\s+/g, '_')}`;
+                novaTransacao[despesa] = parseValorMonetario(document.getElementById(inputId)?.value);
+            });
+            
+            novaTransacao.ganhosTotal = novaTransacao.uber + novaTransacao.noventaenove + novaTransacao.indrive + novaTransacao.particular;
+            customApps.forEach(app => {
+                novaTransacao.ganhosTotal += novaTransacao[app] || 0;
+            });
+            
+            novaTransacao.despesasTotal = novaTransacao.combustivel.valor + novaTransacao.aluguel + novaTransacao.alimentacao;
+            customExpenses.forEach(despesa => {
+                novaTransacao.despesasTotal += novaTransacao[despesa] || 0;
+            });
+
+            transacoes.unshift(novaTransacao);
+            localStorage.setItem('transacoes', JSON.stringify(transacoes));
+            limparForm();
+            atualizarTudo();
+            mostrarNotificacao('Transação adicionada com sucesso!');
+        }
+
+        function limparForm() {
+            document.getElementById('uber').value = '';
+            document.getElementById('noventaenove').value = '';
+            document.getElementById('indrive').value = '';
+            document.getElementById('particular').value = '';
+            document.getElementById('quilometragem').value = '';
+            document.getElementById('horasTrabalhadas').value = '';
+            document.getElementById('combustivelValor').value = '';
+            document.getElementById('aluguel').value = '';
+            document.getElementById('alimentacao').value = '';
+            document.getElementById('totalCorridas').value = '';
+            
+            customApps.forEach(app => {
+                const input = document.getElementById(`app_${app.replace(/\s+/g, '_')}`);
+                if (input) input.value = '';
+            });
+            
+            customExpenses.forEach(despesa => {
+                const input = document.getElementById(`despesa_${despesa.replace(/\s+/g, '_')}`);
+                if (input) input.value = '';
+            });
+        }
+
+        function excluirTransacao(index) {
+            mostrarConfirmacao('Tem certeza que deseja excluir esta transação?', () => {
+                transacoes.splice(index, 1);
+                localStorage.setItem('transacoes', JSON.stringify(transacoes));
+                atualizarTudo();
+                mostrarNotificacao('Transação excluída com sucesso!');
+            });
+        }
+
+        function editarTransacao(index) {
+            editingIndex = index;
+            const transacao = transacoes[index];
+            
+            document.getElementById('editUber').value = transacao.uber;
+            document.getElementById('editNoventaenove').value = transacao.noventaenove;
+            document.getElementById('editIndrive').value = transacao.indrive;
+            document.getElementById('editParticular').value = transacao.particular;
+            document.getElementById('editQuilometragem').value = transacao.quilometragem;
+            document.getElementById('editTotalCorridas').value = transacao.totalCorridas;
+            document.getElementById('editHorasTrabalhadas').value = transacao.horasTrabalhadas;
+            document.getElementById('editCombustivelTipo').value = transacao.combustivel.tipo;
+            document.getElementById('editCombustivelValor').value = transacao.combustivel.valor;
+            document.getElementById('editAluguel').value = transacao.aluguel;
+            document.getElementById('editAlimentacao').value = transacao.alimentacao;
+            
+            atualizarInputsAppsModal(transacao);
+            atualizarInputsDespesasModal(transacao);
+            
+            document.getElementById('editModal').style.display = 'flex';
+        }
+
+        function atualizarInputsAppsModal(transacao) {
+            const container = document.getElementById('editAppsInputsContainer');
+            container.innerHTML = '';
+            customApps.forEach(app => {
+                const inputGroup = document.createElement('div');
+                inputGroup.className = 'dynamic-input-group';
+                inputGroup.innerHTML = `<label>${app} (R$):</label><input type="number" id="edit_app_${app.replace(/\s+/g, '_')}" step="0.01" min="0" value="${transacao[app] || 0}">`;
+                container.appendChild(inputGroup);
+            });
+        }
+
+        function atualizarInputsDespesasModal(transacao) {
+            const container = document.getElementById('editExpensesInputsContainer');
+            container.innerHTML = '';
+            customExpenses.forEach(despesa => {
+                const inputGroup = document.createElement('div');
+                inputGroup.className = 'dynamic-input-group';
+                inputGroup.innerHTML = `<label>${despesa} (R$):</label><input type="number" id="edit_despesa_${despesa.replace(/\s+/g, '_')}" step="0.01" min="0" value="${transacao[despesa] || 0}">`;
+                container.appendChild(inputGroup);
+            });
+        }
+
+        function fecharModalEdicao() {
+            document.getElementById('editModal').style.display = 'none';
+            editingIndex = -1;
+        }
+
+        function salvarEdicao() {
+            if (editingIndex === -1) return;
+            
+            const transacaoEditada = {
+                data: transacoes[editingIndex].data,
+                uber: parseValorMonetario(document.getElementById('editUber').value),
+                noventaenove: parseValorMonetario(document.getElementById('editNoventaenove').value),
+                indrive: parseValorMonetario(document.getElementById('editIndrive').value),
+                particular: parseValorMonetario(document.getElementById('editParticular').value),
+                quilometragem: parseFloat(document.getElementById('editQuilometragem').value) || 0,
+                totalCorridas: parseInt(document.getElementById('editTotalCorridas').value) || 0,
+                horasTrabalhadas: parseFloat(document.getElementById('editHorasTrabalhadas').value) || 0.0,
+                combustivel: { 
+                    tipo: document.getElementById('editCombustivelTipo').value, 
+                    valor: parseValorMonetario(document.getElementById('editCombustivelValor').value)
+                },
+                aluguel: parseValorMonetario(document.getElementById('editAluguel').value),
+                alimentacao: parseValorMonetario(document.getElementById('editAlimentacao').value),
+                ganhosTotal: 0.00,
+                despesasTotal: 0.00
+            };
+            
+            customApps.forEach(app => {
+                const inputId = `edit_app_${app.replace(/\s+/g, '_')}`;
+                transacaoEditada[app] = parseFloat(document.getElementById(inputId)?.value) || 0.00;
+            });
+            
+            customExpenses.forEach(despesa => {
+                const inputId = `edit_despesa_${despesa.replace(/\s+/g, '_')}`;
+                transacaoEditada[despesa] = parseFloat(document.getElementById(inputId)?.value) || 0.00;
+            });
+            
+            transacaoEditada.ganhosTotal = transacaoEditada.uber + transacaoEditada.noventaenove + 
+                                         transacaoEditada.indrive + transacaoEditada.particular;
+            customApps.forEach(app => {
+                transacaoEditada.ganhosTotal += transacaoEditada[app] || 0;
+            });
+            
+            transacaoEditada.despesasTotal = transacaoEditada.combustivel.valor + transacaoEditada.aluguel + 
+                                           transacaoEditada.alimentacao;
+            customExpenses.forEach(despesa => {
+                transacaoEditada.despesasTotal += transacaoEditada[despesa] || 0;
+            });
+            
+            transacoes[editingIndex] = transacaoEditada;
+            localStorage.setItem('transacoes', JSON.stringify(transacoes));
+            
+            fecharModalEdicao();
+            atualizarTudo();
+            mostrarNotificacao('Transação editada com sucesso!');
+        }
+
+        function atualizarPainel() {
+            const periodos = {
+                hoje: { inicio: new Date().toDateString(), nome: 'Dia' },
+                semana: { inicio: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), nome: 'Sem.' },
+                mes: { inicio: new Date(new Date().getFullYear(), new Date().getMonth(), 1), nome: 'Mês' },
+                ano: { inicio: new Date(new Date().getFullYear(), 0, 1), nome: 'Ano' }
+            };
+
+            Object.keys(periodos).forEach(periodo => {
+                const filtro = transacoes.filter(t => {
+                    const transacaoData = new Date(t.data);
+                    if (periodo === 'hoje') {
+                        return transacaoData.toDateString() === new Date().toDateString();
+                    }
+                    return transacaoData >= new Date(periodos[periodo].inicio);
+                });
+                const ganhos = filtro.reduce((sum, t) => sum + t.ganhosTotal, 0);
+                const despesas = filtro.reduce((sum, t) => sum + t.despesasTotal, 0);
+                const lucro = ganhos - despesas;
+                const numViagens = filtro.reduce((sum, t) => sum + t.totalCorridas, 0);
+                const horasTrabalhadas = filtro.reduce((sum, t) => sum + t.horasTrabalhadas, 0);
+                const quilometragem = filtro.reduce((sum, t) => sum + t.quilometragem, 0);
+                const mediaViagem = numViagens > 0 ? (ganhos / numViagens) : 0;
+                const faturamentoHora = horasTrabalhadas > 0 ? (ganhos / horasTrabalhadas) : 0;
+                const faturamentoKm = quilometragem > 0 ? (ganhos / quilometragem) : 0;
+                const margemLucro = ganhos > 0 ? ((lucro / ganhos) * 100) : 0;
+
+                document.getElementById(`ganhos${periodo.charAt(0).toUpperCase() + periodo.slice(1)}`).textContent = `R$ ${ganhos.toFixed(2)}`;
+                document.getElementById(`despesas${periodo.charAt(0).toUpperCase() + periodo.slice(1)}`).textContent = `R$ ${despesas.toFixed(2)}`;
+                document.getElementById(`lucro${periodo.charAt(0).toUpperCase() + periodo.slice(1)}`).textContent = `R$ ${lucro.toFixed(2)}`;
+                document.getElementById(`mediaViagem${periodo.charAt(0).toUpperCase() + periodo.slice(1)}`).textContent = `R$ ${mediaViagem.toFixed(2)}`;
+                document.getElementById(`corridas${periodo.charAt(0).toUpperCase() + periodo.slice(1)}`).textContent = numViagens;
+                document.getElementById(`faturamentoHora${periodo.charAt(0).toUpperCase() + periodo.slice(1)}`).textContent = `R$ ${faturamentoHora.toFixed(2)}`;
+                document.getElementById(`faturamentoKm${periodo.charAt(0).toUpperCase() + periodo.slice(1)}`).textContent = `R$ ${faturamentoKm.toFixed(2)}`;
+                document.getElementById(`margemLucro${periodo.charAt(0).toUpperCase() + periodo.slice(1)}`).textContent = `${margemLucro.toFixed(1)}%`;
+            });
+
+            atualizarProgressoMetas();
+            calcularPlanejamento();
+            atualizarGraficoLucro();
+            
+            if (document.getElementById('imposto').classList.contains('active')) {
+                calcularImpostoRenda();
+            }
+        }
+
+        function atualizarGraficoLucro() {
+            if (charts.lucro) charts.lucro.destroy();
+
+            const dates = [];
+            const lucros = [];
+            const hoje = new Date();
+            
+            for (let i = 29; i >= 0; i--) {
+                const date = new Date();
+                date.setDate(hoje.getDate() - i);
+                const dateStr = date.toDateString();
+                
+                const transacoesDia = transacoes.filter(t => 
+                    new Date(t.data).toDateString() === dateStr
+                );
+                
+                const ganhosDia = transacoesDia.reduce((sum, t) => sum + t.ganhosTotal, 0);
+                const despesasDia = transacoesDia.reduce((sum, t) => sum + t.despesasTotal, 0);
+                const lucroDia = ganhosDia - despesasDia;
+                
+                dates.push(date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }));
+                lucros.push(lucroDia);
+            }
+
+            const ctx = document.getElementById('lucroChart').getContext('2d');
+            charts.lucro = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: dates,
+                    datasets: [{
+                        label: 'Lucro Líquido (R$)',
+                        data: lucros,
+                        borderColor: getComputedStyle(document.documentElement).getPropertyValue('--accent'),
+                        backgroundColor: getComputedStyle(document.documentElement).getPropertyValue('--accent') + '20',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return 'R$ ' + value;
+                                },
+                                font: {
+                                    size: window.innerWidth <= 768 ? 10 : 12
+                                }
+                            }
+                        },
+                        x: {
+                            ticks: {
+                                font: {
+                                    size: window.innerWidth <= 768 ? 10 : 12
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            labels: {
+                                font: {
+                                    size: window.innerWidth <= 768 ? 12 : 14
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function calcularImpostoRenda() {
+            const anoAtual = new Date().getFullYear();
+            const transacoesAno = transacoes.filter(t => new Date(t.data).getFullYear() === anoAtual);
+            
+            const ganhosTotais = transacoesAno.reduce((sum, t) => sum + t.ganhosTotal, 0);
+            const despesasTotais = transacoesAno.reduce((sum, t) => sum + t.despesasTotal, 0);
+            const lucroTributavel = ganhosTotais - despesasTotais;
+            
+            let aliquota = 0;
+            let impostoPagar = 0;
+            
+            if (lucroTributavel > 0) {
+                if (lucroTributavel <= 22847.76) {
+                    aliquota = 0;
+                } else if (lucroTributavel <= 33919.80) {
+                    aliquota = 7.5;
+                    impostoPagar = (lucroTributavel * 0.075) - 1713.58;
+                } else if (lucroTributavel <= 45012.60) {
+                    aliquota = 15;
+                    impostoPagar = (lucroTributavel * 0.15) - 4257.57;
+                } else if (lucroTributavel <= 55976.16) {
+                    aliquota = 22.5;
+                    impostoPagar = (lucroTributavel * 0.225) - 7633.51;
+                } else {
+                    aliquota = 27.5;
+                    impostoPagar = (lucroTributavel * 0.275) - 10432.32;
+                }
+                
+                impostoPagar = Math.max(impostoPagar, 0);
+            }
+            
+            document.getElementById('irGanhosTotais').textContent = `R$ ${ganhosTotais.toFixed(2)}`;
+            document.getElementById('irDespesasTotais').textContent = `R$ ${despesasTotais.toFixed(2)}`;
+            document.getElementById('irLucroTributavel').textContent = `R$ ${lucroTributavel.toFixed(2)}`;
+            document.getElementById('irAliquota').textContent = `${aliquota.toFixed(1)}%`;
+            document.getElementById('irImpostoPagar').textContent = `R$ ${impostoPagar.toFixed(2)}`;
+            document.getElementById('irRendimentosAluguel').textContent = `R$ ${ganhosTotais.toFixed(2)}`;
+            document.getElementById('irDespesasOperacionais').textContent = `R$ ${despesasTotais.toFixed(2)}`;
+            document.getElementById('irRendimentoLiquido').textContent = `R$ ${lucroTributavel.toFixed(2)}`;
+        }
+
+        function exportarRelatorioIR() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            
+            doc.setFontSize(16);
+            doc.text('Relatório Anual - Imposto de Renda', 20, 20);
+            doc.setFontSize(12);
+            doc.text(`Motorista por Aplicativo - ${new Date().getFullYear()}`, 20, 30);
+            
+            doc.autoTable({
+                startY: 40,
+                head: [['Descrição', 'Valor (R$)']],
+                body: [
+                    ['Ganhos Totais', document.getElementById('irGanhosTotais').textContent],
+                    ['Despesas Totais', document.getElementById('irDespesasTotais').textContent],
+                    ['Lucro Tributável', document.getElementById('irLucroTributavel').textContent],
+                    ['Alíquota Efetiva', document.getElementById('irAliquota').textContent],
+                    ['Imposto a Pagar', document.getElementById('irImpostoPagar').textContent]
+                ]
+            });
+            
+            doc.save(`relatorio_ir_${new Date().getFullYear()}.pdf`);
+        }
+
+        function atualizarUltimasTransacoes() {
+            const ultimasList = document.getElementById('ultimasTransacoesList');
+            ultimasList.innerHTML = '';
+            
+            const ultimas15 = transacoes.slice(0, 15);
+            
+            if (ultimas15.length === 0) {
+                ultimasList.innerHTML = '<p style="text-align: center; color: var(--text-secondary);">Nenhuma transação encontrada.</p>';
+                return;
+            }
+            
+            ultimas15.forEach((transacao, index) => {
+                const historyItem = document.createElement('div');
+                historyItem.className = 'history-item';
+                
+                const dataHora = new Date(transacao.data).toLocaleString('pt-BR', { 
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric',
+                    hour: '2-digit', 
+                    minute: '2-digit' 
+                });
+                
+                historyItem.innerHTML = `
+                    <div class="history-header">
+                        <div class="history-date">${dataHora}</div>
+                        <div class="history-actions">
+                            <button onclick="editarTransacao(${index})" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;">Editar</button>
+                            <button onclick="excluirTransacao(${index})" class="danger" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;">Excluir</button>
+                        </div>
+                    </div>
+                    <div class="history-details">
+                        <div class="history-detail">
+                            <strong>Ganhos</strong><br>
+                            R$ ${transacao.ganhosTotal.toFixed(2)}
+                        </div>
+                        <div class="history-detail">
+                            <strong>Despesas</strong><br>
+                            R$ ${transacao.despesasTotal.toFixed(2)}
+                        </div>
+                        <div class="history-detail">
+                            <strong>Lucro</strong><br>
+                            R$ ${(transacao.ganhosTotal - transacao.despesasTotal).toFixed(2)}
+                        </div>
+                        <div class="history-detail">
+                            <strong>KM</strong><br>
+                            ${transacao.quilometragem}
+                        </div>
+                        <div class="history-detail">
+                            <strong>Corridas</strong><br>
+                            ${transacao.totalCorridas}
+                        </div>
+                        <div class="history-detail">
+                            <strong>Horas</strong><br>
+                            ${transacao.horasTrabalhadas.toFixed(1)}
+                        </div>
+                    </div>
+                `;
+                
+                ultimasList.appendChild(historyItem);
+            });
+        }
+
+        function atualizarCalendario() {
+            const monthNames = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+                               "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+            
+            document.getElementById('calendarMonth').textContent = 
+                `${monthNames[currentCalendarMonth]} ${currentCalendarYear}`;
+            
+            const calendarGrid = document.getElementById('calendarGrid');
+            while (calendarGrid.children.length > 7) {
+                calendarGrid.removeChild(calendarGrid.lastChild);
+            }
+            
+            const firstDay = new Date(currentCalendarYear, currentCalendarMonth, 1);
+            const lastDay = new Date(currentCalendarYear, currentCalendarMonth + 1, 0);
+            const startingDay = firstDay.getDay();
+            const daysInMonth = lastDay.getDate();
+            
+            for (let i = 0; i < startingDay; i++) {
+                const emptyDay = document.createElement('div');
+                emptyDay.className = 'calendar-day';
+                calendarGrid.appendChild(emptyDay);
+            }
+            
+            for (let day = 1; day <= daysInMonth; day++) {
+                const dayElement = document.createElement('div');
+                dayElement.className = 'calendar-day';
+                dayElement.textContent = day;
+                
+                const dateStr = new Date(currentCalendarYear, currentCalendarMonth, day).toDateString();
+                const hasTransactions = transacoes.some(t => 
+                    new Date(t.data).toDateString() === dateStr
+                );
+                
+                if (hasTransactions) {
+                    dayElement.classList.add('has-data');
+                }
+                
+                if (selectedDate === dateStr) {
+                    dayElement.classList.add('selected');
+                }
+                
+                dayElement.onclick = () => selecionarDia(day);
+                calendarGrid.appendChild(dayElement);
+            }
+        }
+
+        function changeCalendarMonth(delta) {
+            currentCalendarMonth += delta;
+            if (currentCalendarMonth < 0) {
+                currentCalendarMonth = 11;
+                currentCalendarYear--;
+            } else if (currentCalendarMonth > 11) {
+                currentCalendarMonth = 0;
+                currentCalendarYear++;
+            }
+            atualizarCalendario();
+        }
+
+        function selecionarDia(day) {
+            selectedDate = new Date(currentCalendarYear, currentCalendarMonth, day).toDateString();
+            atualizarCalendario();
+            carregarTransacoesDia();
+        }
+
+        function carregarTransacoesDia() {
+            const historicoList = document.getElementById('historicoList');
+            historicoList.innerHTML = '';
+            
+            if (!selectedDate) return;
+            
+            const transacoesDia = transacoes.filter(t => 
+                new Date(t.data).toDateString() === selectedDate
+            ).sort((a, b) => new Date(b.data) - new Date(a.data));
+            
+            if (transacoesDia.length === 0) {
+                historicoList.innerHTML = '<p style="text-align: center; color: var(--text-secondary);">Nenhuma transação encontrada para este dia.</p>';
+                return;
+            }
+            
+            transacoesDia.forEach((transacao) => {
+                const globalIndex = transacoes.findIndex(t => t.data === transacao.data);
+                const historyItem = document.createElement('div');
+                historyItem.className = 'history-item';
+                
+                const hora = new Date(transacao.data).toLocaleTimeString('pt-BR', { 
+                    hour: '2-digit', 
+                    minute: '2-digit' 
+                });
+                
+                historyItem.innerHTML = `
+                    <div class="history-header">
+                        <div class="history-date">${hora}</div>
+                        <div class="history-actions">
+                            <button onclick="editarTransacao(${globalIndex})" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;">Editar</button>
+                            <button onclick="excluirTransacao(${globalIndex})" class="danger" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;">Excluir</button>
+                        </div>
+                    </div>
+                    <div class="history-details">
+                        <div class="history-detail">
+                            <strong>Ganhos</strong><br>
+                            R$ ${transacao.ganhosTotal.toFixed(2)}
+                        </div>
+                        <div class="history-detail">
+                            <strong>Despesas</strong><br>
+                            R$ ${transacao.despesasTotal.toFixed(2)}
+                        </div>
+                        <div class="history-detail">
+                            <strong>Lucro</strong><br>
+                            R$ ${(transacao.ganhosTotal - transacao.despesasTotal).toFixed(2)}
+                        </div>
+                        <div class="history-detail">
+                            <strong>KM</strong><br>
+                            ${transacao.quilometragem}
+                        </div>
+                        <div class="history-detail">
+                            <strong>Corridas</strong><br>
+                            ${transacao.totalCorridas}
+                        </div>
+                        <div class="history-detail">
+                            <strong>Horas</strong><br>
+                            ${transacao.horasTrabalhadas.toFixed(1)}
+                        </div>
+                    </div>
+                `;
+                
+                historicoList.appendChild(historyItem);
+            });
+        }
+
+        function getFilteredTransactions() {
+            const period = document.getElementById('periodFilter').value;
+            const dateStart = document.getElementById('dateStart').value ? new Date(document.getElementById('dateStart').value) : null;
+            const dateEnd = document.getElementById('dateEnd').value ? new Date(document.getElementById('dateEnd').value) : null;
+            const today = new Date();
+
+            if (period === 'custom' && dateStart && dateEnd) {
+                return transacoes.filter(t => {
+                    const transacaoData = new Date(t.data);
+                    return transacaoData >= dateStart && transacaoData <= new Date(dateEnd.getTime() + 24 * 60 * 60 * 1000 - 1);
+                });
+            }
+
+            const periodos = {
+                all: { inicio: new Date(0) },
+                today: { inicio: today.toDateString() },
+                last7days: { inicio: new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000) },
+                last30days: { inicio: new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000) },
+                currentMonth: { inicio: new Date(today.getFullYear(), today.getMonth(), 1) },
+                currentYear: { inicio: new Date(today.getFullYear(), 0, 1) }
+            };
+
+            if (period in periodos) {
+                return transacoes.filter(t => {
+                    const transacaoData = new Date(t.data);
+                    if (period === 'today') {
+                        return transacaoData.toDateString() === today.toDateString();
+                    }
+                    return transacaoData >= periodos[period].inicio;
+                });
+            }
+            return transacoes;
+        }
+
+        function inicializarGraficos() {
+            if (charts.ganhos) charts.ganhos.destroy();
+            if (charts.despesas) charts.despesas.destroy();
+
+            const filteredTransacoes = getFilteredTransactions();
+
+            const labelsGanhos = ['Uber', '99', 'InDrive', 'Particular'];
+            const dadosGanhos = [
+                filteredTransacoes.reduce((sum, t) => sum + t.uber, 0),
+                filteredTransacoes.reduce((sum, t) => sum + t.noventaenove, 0),
+                filteredTransacoes.reduce((sum, t) => sum + t.indrive, 0),
+                filteredTransacoes.reduce((sum, t) => sum + t.particular, 0)
+            ];
+
+            customApps.forEach(app => {
+                labelsGanhos.push(app);
+                dadosGanhos.push(filteredTransacoes.reduce((sum, t) => sum + (t[app] || 0), 0));
+            });
+
+            const coresGanhos = [
+                '#000000', '#FFCD00', '#C1F11D', '#4BC0C0',
+                '#FF6384', '#36A2EB', '#FFCE56', '#9966FF',
+                '#FF9F40', '#4BC0C0', '#C9CBCF', '#FF6384'
+            ].slice(0, labelsGanhos.length);
+
+            const ctxGanhos = document.getElementById('ganhosChart').getContext('2d');
+            charts.ganhos = new Chart(ctxGanhos, {
+                type: 'doughnut',
+                data: {
+                    labels: labelsGanhos,
+                    datasets: [{
+                        data: dadosGanhos,
+                        backgroundColor: coresGanhos
+                    }]
+                },
+                options: { 
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { 
+                        legend: { 
+                            position: 'bottom', 
+                            labels: { 
+                                color: '#333',
+                                font: {
+                                    size: window.innerWidth <= 768 ? 10 : 12
+                                }
+                            } 
+                        } 
+                    } 
+                }
+            });
+
+            const labelsDespesas = ['Combustível', 'Aluguel', 'Alimentação'];
+            const dadosDespesas = [
+                filteredTransacoes.reduce((sum, t) => sum + t.combustivel.valor, 0),
+                filteredTransacoes.reduce((sum, t) => sum + t.aluguel, 0),
+                filteredTransacoes.reduce((sum, t) => sum + t.alimentacao, 0)
+            ];
+
+            customExpenses.forEach(despesa => {
+                labelsDespesas.push(despesa);
+                dadosDespesas.push(filteredTransacoes.reduce((sum, t) => sum + (t[despesa] || 0), 0));
+            });
+
+            const coresDespesas = [
+                '#FF6384', '#FF4444', '#FFCE56', '#4BC0C0',
+                '#9966FF', '#36A2EB', '#FF9F40', '#C9CBCF'
+            ].slice(0, labelsDespesas.length);
+
+            const ctxDespesas = document.getElementById('despesasChart').getContext('2d');
+            charts.despesas = new Chart(ctxDespesas, {
+                type: 'bar',
+                data: {
+                    labels: labelsDespesas,
+                    datasets: [{
+                        data: dadosDespesas,
+                        backgroundColor: coresDespesas
+                    }]
+                },
+                options: { 
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: { 
+                        y: { 
+                            beginAtZero: true, 
+                            ticks: { 
+                                color: '#333',
+                                font: {
+                                    size: window.innerWidth <= 768 ? 10 : 12
+                                }
+                            } 
+                        },
+                        x: {
+                            ticks: { 
+                                color: '#333',
+                                font: {
+                                    size: window.innerWidth <= 768 ? 10 : 12
+                                }
+                            }
+                        }
+                    }, 
+                    plugins: { 
+                        legend: { 
+                            display: false 
+                        } 
+                    } 
+                }
+            });
+        }
+
+        function applyCustomFilter() {
+            const dateStart = document.getElementById('dateStart').value;
+            const dateEnd = document.getElementById('dateEnd').value;
+            if (dateStart && dateEnd && new Date(dateStart) <= new Date(dateEnd)) {
+                inicializarGraficos();
+            } else {
+                mostrarNotificacao('Datas inválidas. Início deve ser antes do fim.');
+            }
+        }
+
+        function exportarJSON() {
+            const dados = { 
+                transacoes, 
+                metaDiaria, 
+                metaPorKm, 
+                metaPorHora,
+                metaSemanal,
+                metaMensal,
+                customApps,
+                customExpenses
+            };
+            downloadFile(JSON.stringify(dados, null, 2), 'driverfinance.json', 'application/json');
+        }
+
+        function exportarCSV() {
+            let csv = 'Data,Uber,99,InDrive,Particular,Ganhos Total,Combustível,Aluguel,Alimentação,Despesas Total,Lucro,Horas Trabalhadas,Quilometragem,Total de Corridas';
+            
+            customApps.forEach(app => {
+                csv += `,${app}`;
+            });
+            
+            customExpenses.forEach(despesa => {
+                csv += `,${despesa}`;
+            });
+            
+            csv += '\n';
+            
+            transacoes.forEach(t => {
+                let linha = `${t.data},R$ ${t.uber.toFixed(2)},R$ ${t.noventaenove.toFixed(2)},R$ ${t.indrive.toFixed(2)},R$ ${t.particular.toFixed(2)},R$ ${t.ganhosTotal.toFixed(2)},${t.combustivel.tipo} (R$ ${t.combustivel.valor.toFixed(2)}),R$ ${t.aluguel.toFixed(2)},R$ ${t.alimentacao.toFixed(2)},R$ ${t.despesasTotal.toFixed(2)},R$ ${(t.ganhosTotal - t.despesasTotal).toFixed(2)},${t.horasTrabalhadas.toFixed(1)},${t.quilometragem},${t.totalCorridas}`;
+                
+                customApps.forEach(app => {
+                    linha += `,R$ ${(t[app] || 0).toFixed(2)}`;
+                });
+                
+                customExpenses.forEach(despesa => {
+                    linha += `,R$ ${(t[despesa] || 0).toFixed(2)}`;
+                });
+                
+                csv += linha + '\n';
+            });
+            downloadFile(csv, 'driverfinance.csv', 'text/csv');
+        }
+
+        function exportarPDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+            const margin = 10;
+            const today = new Date().toLocaleDateString('pt-BR');
+
+            doc.setFontSize(18);
+            doc.text('Relatório DriverFinance Pro', margin, 20);
+            doc.setFontSize(12);
+            doc.text(`Gerado em: ${today}`, margin, 30);
+
+            doc.save('driverfinance_relatorio.pdf');
+        }
+
+        function confirmarImportacao() {
+            mostrarConfirmacao('Deseja importar os dados? Esta ação ' + 
+                       (document.getElementById('importMode').value === 'replace' ? 
+                       'SUBSTITUIRÁ' : 'MESCLARÁ') + ' todos os dados atuais.', importarJSON);
+        }
+
+        function importarJSON() {
+            const file = document.getElementById('importFile').files[0];
+            if (!file) return mostrarNotificacao('Selecione um arquivo JSON.');
+            const mode = document.getElementById('importMode').value;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const dados = JSON.parse(e.target.result);
+                    if (mode === 'replace') {
+                        transacoes = dados.transacoes || [];
+                        metaDiaria = dados.metaDiaria || 0;
+                        metaPorKm = dados.metaPorKm || 0;
+                        metaPorHora = dados.metaPorHora || 0;
+                        metaSemanal = dados.metaSemanal || 0;
+                        metaMensal = dados.metaMensal || 0;
+                        customApps = dados.customApps || [];
+                        customExpenses = dados.customExpenses || [];
+                    } else {
+                        transacoes = [...transacoes, ...(dados.transacoes || [])];
+                        metaDiaria = dados.metaDiaria || metaDiaria;
+                        metaPorKm = dados.metaPorKm || metaPorKm;
+                        metaPorHora = dados.metaPorHora || metaPorHora;
+                        metaSemanal = dados.metaSemanal || metaSemanal;
+                        metaMensal = dados.metaMensal || metaMensal;
+                        customApps = [...new Set([...customApps, ...(dados.customApps || [])])];
+                        customExpenses = [...new Set([...customExpenses, ...(dados.customExpenses || [])])];
+                    }
+                    
+                    localStorage.setItem('transacoes', JSON.stringify(transacoes));
+                    localStorage.setItem('metaDiaria', metaDiaria);
+                    localStorage.setItem('metaPorKm', metaPorKm);
+                    localStorage.setItem('metaPorHora', metaPorHora);
+                    localStorage.setItem('metaSemanal', metaSemanal);
+                    localStorage.setItem('metaMensal', metaMensal);
+                    localStorage.setItem('customApps', JSON.stringify(customApps));
+                    localStorage.setItem('customExpenses', JSON.stringify(customExpenses));
+                   
+                    atualizarListaAppsPersonalizados();
+                    atualizarListaDespesasPersonalizadas();
+                    atualizarInputsApps();
+                    atualizarInputsDespesas();
+                    calcularPlanejamento();
+                    atualizarTudo();
+                    mostrarNotificacao('Dados importados com sucesso!');
+                } catch (err) {
+                    mostrarNotificacao('Erro ao importar. Verifique o arquivo.');
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function downloadBackup() {
+            exportarJSON();
+        }
+
+        function apagarTudo() {
+            mostrarConfirmacao('ATENÇÃO: Isso apagará TODOS os dados. Confirma?', confirmarApagar);
+        }
+        
+        function confirmarApagar() {
+            transacoes = [];
+            metaDiaria = 0;
+            metaPorKm = 0;
+            metaPorHora = 0;
+            metaSemanal = 0;
+            metaMensal = 0;
+            customApps = [];
+            customExpenses = [];
+            
+            localStorage.clear();
+            
+            atualizarListaAppsPersonalizados();
+            atualizarListaDespesasPersonalizadas();
+            atualizarInputsApps();
+            atualizarInputsDespesas();
+            calcularPlanejamento();
+            mostrarNotificacao('Dados apagados com sucesso!');
+            atualizarTudo();
+        }
+
+        function downloadFile(content, filename, mime) {
+            const blob = new Blob([content], { type: mime });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function atualizarTudo() {
+            atualizarPainel();
+            if (document.getElementById('estatisticas').classList.contains('active')) {
+                inicializarGraficos();
+            }
+            atualizarUltimasTransacoes();
+            if (selectedDate) carregarTransacoesDia();
+        }
+
+        function formatTime(seconds) {
+            const hours = Math.floor(seconds / 3600).toString().padStart(2, '0');
+            const minutes = Math.floor((seconds % 3600) / 60).toString().padStart(2, '0');
+            const secondsRemaining = (seconds % 60).toString().padStart(2, '0');
+            return `${hours}:${minutes}:${secondsRemaining}`;
+        }
+
+        function updateTimerDisplay() {
+            const totalSeconds = startTime ? 
+                elapsedSeconds + Math.floor((Date.now() - startTime) / 1000) : 
+                elapsedSeconds;
+            document.getElementById('timerDisplay').textContent = formatTime(totalSeconds);
+        }
+
+        function startTimer() {
+            if (timerRunning) return;
+            
+            timerRunning = true;
+            startTime = Date.now();
+            localStorage.setItem('timerStartTimeDF', startTime.toString());
+            localStorage.setItem('timerRunningDF', 'true');
+            
+            timerInterval = setInterval(updateTimerDisplay, 1000);
+            updateTimerDisplay();
+            mostrarNotificacao('Timer iniciado!');
+        }
+
+        function pauseTimer() {
+            if (!timerRunning) return;
+            
+            timerRunning = false;
+            clearInterval(timerInterval);
+            
+            if (startTime) {
+                const now = Date.now();
+                elapsedSeconds += Math.floor((now - startTime) / 1000);
+                startTime = null;
+            }
+            
+            localStorage.setItem('timerElapsedDF', elapsedSeconds.toString());
+            localStorage.removeItem('timerStartTimeDF');
+            localStorage.setItem('timerRunningDF', 'false');
+            
+            updateTimerDisplay();
+            mostrarNotificacao('Timer pausado!');
+        }
+
+        function resetTimer() {
+            const wasRunning = timerRunning;
+            
+            if (timerRunning) {
+                timerRunning = false;
+                clearInterval(timerInterval);
+            }
+            
+            if (wasRunning && startTime) {
+                const now = Date.now();
+                elapsedSeconds += Math.floor((now - startTime) / 1000);
+            }
+            
+            const horasDecimais = (elapsedSeconds / 3600).toFixed(2);
+            const horasInput = document.getElementById('horasTrabalhadas');
+            if (horasInput) {
+                horasInput.value = horasDecimais;
+            }
+            
+            elapsedSeconds = 0;
+            startTime = null;
+            
+            localStorage.removeItem('timerElapsedDF');
+            localStorage.removeItem('timerStartTimeDF');
+            localStorage.setItem('timerRunningDF', 'false');
+            
+            updateTimerDisplay();
+            mostrarNotificacao(`Jornada finalizada: ${horasDecimais} horas trabalhadas.`);
+        }
+
+        function mostrarNotificacao(texto) {
+            const notification = document.getElementById('metaNotification');
+            notification.textContent = texto;
+            notification.classList.remove('show');
+            void notification.offsetWidth;
+            notification.classList.add('show');
+
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 5000);
+        }
+
+        function mostrarConfirmacao(mensagem, callback) {
+            const notification = document.getElementById('metaNotification');
+            notification.innerHTML = `
+                <div style="text-align: center;">
+                    <div style="margin-bottom: 1rem;">${mensagem}</div>
+                    <div style="display: flex; gap: 1rem; justify-content: center;">
+                        <button onclick="confirmarAcao(true)" style="background: var(--accent); padding: 0.5rem 1rem; border: none; border-radius: 4px; color: white; cursor: pointer;">Sim</button>
+                        <button onclick="confirmarAcao(false)" style="background: #666; padding: 0.5rem 1rem; border: none; border-radius: 4px; color: white; cursor: pointer;">Não</button>
+                    </div>
+                </div>
+            `;
+            
+            window.confirmarAcao = function(confirmado) {
+                notification.classList.remove('show');
+                if (confirmado && callback) {
+                    callback();
+                }
+                setTimeout(() => {
+                    window.confirmarAcao = null;
+                }, 100);
+            };
+            
+            notification.classList.remove('show');
+            void notification.offsetWidth;
+            notification.classList.add('show');
+        }
+
+        function toggleMobileMenu() {
+            const nav = document.getElementById('mainNav');
+            nav.classList.toggle('mobile-open');
+        }
+
+        function showSection(id) {
+            document.querySelectorAll('section').forEach(s => s.classList.remove('active'));
+            const section = document.getElementById(id);
+            if (section) section.classList.add('active');
+
+            document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+            const btn = document.querySelector(`nav button[onclick="showSection('${id}')"]`);
+            if (btn) btn.classList.add('active');
+
+            if (window.innerWidth <= 768) {
+                document.getElementById('mainNav').classList.remove('mobile-open');
+            }
+
+            if (id === 'painel') atualizarPainel();
+            if (id === 'estatisticas') inicializarGraficos();
+            if (id === 'historico') {
+                atualizarCalendario();
+                atualizarUltimasTransacoes();
+            }
+            if (id === 'imposto') {
+                calcularImpostoRenda();
+            }
+        }
+
+        function aplicarTema() {
+            const theme = document.body.dataset.theme;
+            document.querySelectorAll('.card, .meta-diaria, .meta-planejamento, .meta-semanal, .meta-mensal, nav, header, footer').forEach(el => {
+                el.style.background = getComputedStyle(document.documentElement).getPropertyValue('--bg-secondary');
+                el.style.borderColor = getComputedStyle(document.documentElement).getPropertyValue('--border');
+            });
+            
+            document.querySelectorAll('input, select').forEach(el => {
+                el.style.background = getComputedStyle(document.documentElement).getPropertyValue('--bg-primary');
+                el.style.color = getComputedStyle(document.documentElement).getPropertyValue('--text-primary');
+                el.style.borderColor = getComputedStyle(document.documentElement).getPropertyValue('--accent');
+            });
+            
+            document.querySelectorAll('button').forEach(el => {
+                if (!el.classList.contains('danger')) {
+                    el.style.background = getComputedStyle(document.documentElement).getPropertyValue('--accent');
+                    el.style.color = getComputedStyle(document.documentElement).getPropertyValue('--bg-primary');
+                } else {
+                    el.style.color = getComputedStyle(document.documentElement).getPropertyValue('--bg-primary');
+                }
+            });
+            document.querySelectorAll('.card p.dia').forEach(el => {
+                el.style.color = getComputedStyle(document.documentElement).getPropertyValue('--accent');
+            });
+            document.querySelectorAll('.card p.sem').forEach(el => {
+                el.style.color = getComputedStyle(document.documentElement).getPropertyValue('--accent-light');
+            });
+            document.querySelectorAll('.card p.mes').forEach(el => {
+                el.style.color = getComputedStyle(document.documentElement).getPropertyValue('--accent-lighter');
+            });
+            document.querySelectorAll('.card p.ano').forEach(el => {
+                el.style.color = getComputedStyle(document.documentElement).getPropertyValue('--accent-lightest');
+            });
+            document.querySelectorAll('.meta-planejamento output').forEach(el => {
+                el.style.color = getComputedStyle(document.documentElement).getPropertyValue('--accent');
+            });
+        }
+
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js').catch((err) => console.error('Service Worker Error:', err));
+        }
+    </script>
+</body>
+</html>
