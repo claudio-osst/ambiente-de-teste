@@ -7,6 +7,10 @@
     <meta name="description" content="Controle de faturamento e despesas para motoristas de app.">
     <meta name="theme-color" content="#00ff88">
     <link rel="manifest" href="manifest.json">
+    
+    <!-- Biblioteca Dexie.js para IndexedDB -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dexie/3.2.4/dexie.min.js"></script>
+    
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script type="text/javascript">
         var gk_isXlsx = false;
@@ -1140,6 +1144,15 @@
                     <div class="update-item">
                         <div class="update-badge">NOVO</div>
                         <div class="update-content">
+                            <h4>🗄️ Sistema de Banco de Dados IndexedDB</h4>
+                            <p>Implementado sistema robusto de armazenamento com Dexie.js para melhor performance e escalabilidade. Seus dados agora são gerenciados de forma mais eficiente!</p>
+                            <small>Lançado em: 08/11/2024</small>
+                        </div>
+                    </div>
+                    
+                    <div class="update-item">
+                        <div class="update-badge">NOVO</div>
+                        <div class="update-content">
                             <h4>Calculadora de Imposto de Renda</h4>
                             <p>Agora você pode calcular automaticamente o imposto de renda devido com base nos seus ganhos anuais.</p>
                             <small>Lançado em: 15/12/2024</small>
@@ -1248,116 +1261,516 @@
                         <div id="editExpensesInputsContainer"></div>
                     </div>
                 </div>
-                <div style="margin-top: 1.5rem; display: flex; gap: 1rem;">
-                    <button type="button" onclick="salvarEdicao()">Salvar Alterações</button>
-                    <button type="button" onclick="fecharModalEdicao()">Cancelar</button>
-                </div>
-            </form>
-        </div>
-    </div>
+                <div style="margin-top: 1
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.3/jspdf.plugin.autotable.min.js"></script>
     <script>
-        let transacoes = JSON.parse(localStorage.getItem('transacoes')) || [];
+        // ========================================
+        // CONFIGURAÇÃO DO BANCO DE DADOS DEXIE.JS
+        // ========================================
+        
+        /**
+         * Inicialização do banco de dados IndexedDB usando Dexie.js
+         * 
+         * ESTRUTURA DO BANCO DE DADOS:
+         * - transacoes: Armazena todas as transações financeiras
+         * - configuracoes: Armazena configurações do app (metas, apps personalizados, etc.)
+         * - timer: Armazena dados do timer de jornada
+         * 
+         * VERSIONAMENTO:
+         * Versão 1: Estrutura inicial com suporte a migração do localStorage
+         */
+        const db = new Dexie('DriverFinanceDB');
+        
+        // Definição do schema do banco de dados
+        db.version(1).stores({
+            // Tabela de transações com índices para consultas otimizadas
+            transacoes: '++id, data, ganhosTotal, despesasTotal, [data+ganhosTotal]',
+            
+            // Tabela de configurações (key-value store)
+            configuracoes: 'chave, valor',
+            
+            // Tabela para dados do timer
+            timer: 'id, startTime, elapsedSeconds, running'
+        });
+
+        // ========================================
+        // CAMADA DE ABSTRAÇÃO DO BANCO DE DADOS
+        // ========================================
+        
+        /**
+         * DBManager - Gerenciador centralizado de operações do banco de dados
+         * Fornece métodos assíncronos para CRUD e operações complexas
+         */
+        const DBManager = {
+            /**
+             * TRANSAÇÕES
+             */
+            
+            // Adiciona uma nova transação ao banco
+            async adicionarTransacao(transacao) {
+                try {
+                    const id = await db.transacoes.add({
+                        ...transacao,
+                        criadoEm: new Date().toISOString(),
+                        atualizadoEm: new Date().toISOString()
+                    });
+                    console.log('✅ Transação adicionada ao DB:', id);
+                    return id;
+                } catch (error) {
+                    console.error('❌ Erro ao adicionar transação:', error);
+                    throw error;
+                }
+            },
+            
+            // Busca todas as transações ordenadas por data (mais recentes primeiro)
+            async buscarTodasTransacoes() {
+                try {
+                    const transacoes = await db.transacoes
+                        .orderBy('data')
+                        .reverse()
+                        .toArray();
+                    console.log(`✅ ${transacoes.length} transações carregadas do DB`);
+                    return transacoes;
+                } catch (error) {
+                    console.error('❌ Erro ao buscar transações:', error);
+                    return [];
+                }
+            },
+            
+            // Busca transações por período
+            async buscarTransacoesPorPeriodo(dataInicio, dataFim) {
+                try {
+                    const transacoes = await db.transacoes
+                        .where('data')
+                        .between(dataInicio, dataFim, true, true)
+                        .toArray();
+                    return transacoes;
+                } catch (error) {
+                    console.error('❌ Erro ao buscar transações por período:', error);
+                    return [];
+                }
+            },
+            
+            // Atualiza uma transação existente
+            async atualizarTransacao(id, dadosAtualizados) {
+                try {
+                    await db.transacoes.update(id, {
+                        ...dadosAtualizados,
+                        atualizadoEm: new Date().toISOString()
+                    });
+                    console.log('✅ Transação atualizada:', id);
+                    return true;
+                } catch (error) {
+                    console.error('❌ Erro ao atualizar transação:', error);
+                    throw error;
+                }
+            },
+            
+            // Remove uma transação
+            async removerTransacao(id) {
+                try {
+                    await db.transacoes.delete(id);
+                    console.log('✅ Transação removida:', id);
+                    return true;
+                } catch (error) {
+                    console.error('❌ Erro ao remover transação:', error);
+                    throw error;
+                }
+            },
+            
+            // Limpa todas as transações (usar com cuidado!)
+            async limparTodasTransacoes() {
+                try {
+                    await db.transacoes.clear();
+                    console.log('✅ Todas as transações foram removidas');
+                    return true;
+                } catch (error) {
+                    console.error('❌ Erro ao limpar transações:', error);
+                    throw error;
+                }
+            },
+            
+            /**
+             * CONFIGURAÇÕES
+             */
+            
+            // Salva uma configuração
+            async salvarConfiguracao(chave, valor) {
+                try {
+                    await db.configuracoes.put({ chave, valor });
+                    console.log(`✅ Configuração salva: ${chave}`);
+                    return true;
+                } catch (error) {
+                    console.error('❌ Erro ao salvar configuração:', error);
+                    throw error;
+                }
+            },
+            
+            // Busca uma configuração
+            async buscarConfiguracao(chave, valorPadrao = null) {
+                try {
+                    const config = await db.configuracoes.get(chave);
+                    return config ? config.valor : valorPadrao;
+                } catch (error) {
+                    console.error('❌ Erro ao buscar configuração:', error);
+                    return valorPadrao;
+                }
+            },
+            
+            // Remove uma configuração
+            async removerConfiguracao(chave) {
+                try {
+                    await db.configuracoes.delete(chave);
+                    console.log(`✅ Configuração removida: ${chave}`);
+                    return true;
+                } catch (error) {
+                    console.error('❌ Erro ao remover configuração:', error);
+                    throw error;
+                }
+            },
+            
+            /**
+             * TIMER
+             */
+            
+            // Salva estado do timer
+            async salvarTimer(dados) {
+                try {
+                    await db.timer.put({ id: 'current', ...dados });
+                    return true;
+                } catch (error) {
+                    console.error('❌ Erro ao salvar timer:', error);
+                    throw error;
+                }
+            },
+            
+            // Busca estado do timer
+            async buscarTimer() {
+                try {
+                    const timer = await db.timer.get('current');
+                    return timer || { startTime: null, elapsedSeconds: 0, running: false };
+                } catch (error) {
+                    console.error('❌ Erro ao buscar timer:', error);
+                    return { startTime: null, elapsedSeconds: 0, running: false };
+                }
+            },
+            
+            /**
+             * MIGRAÇÃO E BACKUP
+             */
+            
+            // Migra dados do localStorage para IndexedDB
+            async migrarLocalStorage() {
+                console.log('🔄 Iniciando migração do localStorage...');
+                
+                try {
+                    // Verifica se já foi migrado
+                    const jaMigrado = await this.buscarConfiguracao('migracaoConcluida');
+                    if (jaMigrado) {
+                        console.log('✅ Migração já foi realizada anteriormente');
+                        return;
+                    }
+                    
+                    // Migra transações
+                    const transacoesLS = localStorage.getItem('transacoes');
+                    if (transacoesLS) {
+                        const transacoes = JSON.parse(transacoesLS);
+                        console.log(`📦 Migrando ${transacoes.length} transações...`);
+                        await db.transacoes.bulkAdd(transacoes);
+                    }
+                    
+                    // Migra configurações
+                    const configs = [
+                        'metaDiaria', 'metaPorKm', 'metaPorHora', 
+                        'metaSemanal', 'metaMensal',
+                        'customApps', 'customExpenses',
+                        'theme', 'fontSize'
+                    ];
+                    
+                    for (const config of configs) {
+                        const valor = localStorage.getItem(config);
+                        if (valor !== null) {
+                            await this.salvarConfiguracao(config, valor);
+                        }
+                    }
+                    
+                    // Migra timer
+                    const timerData = {
+                        startTime: localStorage.getItem('timerStartTimeDF'),
+                        elapsedSeconds: parseInt(localStorage.getItem('timerElapsedDF')) || 0,
+                        running: localStorage.getItem('timerRunningDF') === 'true'
+                    };
+                    await this.salvarTimer(timerData);
+                    
+                    // Marca como migrado
+                    await this.salvarConfiguracao('migracaoConcluida', true);
+                    
+                    console.log('✅ Migração concluída com sucesso!');
+                    console.log('ℹ️ Os dados do localStorage foram preservados como backup');
+                    
+                } catch (error) {
+                    console.error('❌ Erro na migração:', error);
+                    throw error;
+                }
+            },
+            
+            // Exporta todos os dados do banco
+            async exportarDados() {
+                try {
+                    const transacoes = await this.buscarTodasTransacoes();
+                    const configuracoes = await db.configuracoes.toArray();
+                    const timer = await this.buscarTimer();
+                    
+                    return {
+                        versao: 1,
+                        dataExportacao: new Date().toISOString(),
+                        transacoes,
+                        configuracoes: configuracoes.reduce((acc, item) => {
+                            acc[item.chave] = item.valor;
+                            return acc;
+                        }, {}),
+                        timer
+                    };
+                } catch (error) {
+                    console.error('❌ Erro ao exportar dados:', error);
+                    throw error;
+                }
+            },
+            
+            // Importa dados para o banco
+            async importarDados(dados, modo = 'merge') {
+                try {
+                    if (modo === 'replace') {
+                        // Limpa tudo antes de importar
+                        await db.transacoes.clear();
+                        await db.configuracoes.clear();
+                    }
+                    
+                    // Importa transações
+                    if (dados.transacoes && dados.transacoes.length > 0) {
+                        await db.transacoes.bulkAdd(dados.transacoes);
+                    }
+                    
+                    // Importa configurações
+                    if (dados.configuracoes) {
+                        for (const [chave, valor] of Object.entries(dados.configuracoes)) {
+                            await this.salvarConfiguracao(chave, valor);
+                        }
+                    }
+                    
+                    // Importa timer
+                    if (dados.timer) {
+                        await this.salvarTimer(dados.timer);
+                    }
+                    
+                    console.log('✅ Dados importados com sucesso!');
+                    return true;
+                } catch (error) {
+                    console.error('❌ Erro ao importar dados:', error);
+                    throw error;
+                }
+            },
+            
+            // Apaga todos os dados do banco
+            async apagarTodosBancoDados() {
+                try {
+                    await db.transacoes.clear();
+                    await db.configuracoes.clear();
+                    await db.timer.clear();
+                    console.log('✅ Todos os dados foram apagados');
+                    return true;
+                } catch (error) {
+                    console.error('❌ Erro ao apagar dados:', error);
+                    throw error;
+                }
+            }
+        };
+
+        // ========================================
+        // VARIÁVEIS GLOBAIS (Cache em memória)
+        // ========================================
+        
+        let transacoes = [];
         let charts = {};
-        let metaDiaria = parseFloat(localStorage.getItem('metaDiaria')) || 0;
-        let metaPorKm = parseFloat(localStorage.getItem('metaPorKm')) || 0;
-        let metaPorHora = parseFloat(localStorage.getItem('metaPorHora')) || 0;
-        let metaSemanal = parseFloat(localStorage.getItem('metaSemanal')) || 0;
-        let metaMensal = parseFloat(localStorage.getItem('metaMensal')) || 0;
-        let customApps = JSON.parse(localStorage.getItem('customApps')) || [];
-        let customExpenses = JSON.parse(localStorage.getItem('customExpenses')) || [];
+        let metaDiaria = 0;
+        let metaPorKm = 0;
+        let metaPorHora = 0;
+        let metaSemanal = 0;
+        let metaMensal = 0;
+        let customApps = [];
+        let customExpenses = [];
         let currentCalendarMonth = new Date().getMonth();
         let currentCalendarYear = new Date().getFullYear();
         let selectedDate = null;
         let editingIndex = -1;
 
         let timerInterval;
-        let startTime = localStorage.getItem('timerStartTimeDF') ? parseInt(localStorage.getItem('timerStartTimeDF')) : null;
-        let elapsedSeconds = parseInt(localStorage.getItem('timerElapsedDF')) || 0;
-        let timerRunning = localStorage.getItem('timerRunningDF') === 'true';
+        let startTime = null;
+        let elapsedSeconds = 0;
+        let timerRunning = false;
 
-        window.addEventListener('load', () => {
-            const savedTheme = localStorage.getItem('theme') || 'dark';
-            document.body.dataset.theme = savedTheme;
-            aplicarTema();
+        // ========================================
+        // INICIALIZAÇÃO DO APP
+        // ========================================
+        
+        window.addEventListener('load', async () => {
+            console.log('🚀 Iniciando DriverFinance Pro...');
             
-            document.querySelectorAll('.theme-btn').forEach(button => {
-                button.addEventListener('click', () => {
-                    const theme = button.dataset.theme;
-                    document.body.dataset.theme = theme;
-                    localStorage.setItem('theme', theme);
-                    document.querySelectorAll('.theme-btn').forEach(btn => btn.classList.remove('active'));
-                    button.classList.add('active');
-                    aplicarTema();
-                    if (document.getElementById('painel').classList.contains('active')) {
-                        atualizarPainel();
+            try {
+                // Realiza migração do localStorage (se necessário)
+                await DBManager.migrarLocalStorage();
+                
+                // Carrega dados do banco
+                await carregarDadosDoBanco();
+                
+                // Configura tema
+                const savedTheme = await DBManager.buscarConfiguracao('theme', 'dark');
+                document.body.dataset.theme = savedTheme;
+                aplicarTema();
+                
+                // Configura botões de tema
+                document.querySelectorAll('.theme-btn').forEach(button => {
+                    button.addEventListener('click', async () => {
+                        const theme = button.dataset.theme;
+                        document.body.dataset.theme = theme;
+                        await DBManager.salvarConfiguracao('theme', theme);
+                        document.querySelectorAll('.theme-btn').forEach(btn => btn.classList.remove('active'));
+                        button.classList.add('active');
+                        aplicarTema();
+                        if (document.getElementById('painel').classList.contains('active')) {
+                            atualizarPainel();
+                        }
+                    });
+                });
+                
+                const activeBtn = document.querySelector(`.theme-btn[data-theme="${savedTheme}"]`);
+                if (activeBtn) activeBtn.classList.add('active');
+                
+                // Configura tamanho de fonte
+                const fontSizeMap = ["small", "medium", "large", "extra-large", "xx-large", "xxx-large"];
+                const fontSizeTextMap = ["Pequeno", "Médio", "Grande", "Extra Grande", "Extra Extra Grande", "Extra Extra Extra Grande"];
+                const savedFontSize = await DBManager.buscarConfiguracao('fontSize', 'medium');
+                const savedFontSizeIndex = fontSizeMap.indexOf(savedFontSize);
+                const fontSizeSlider = document.getElementById("fontSizeSlider");
+                const fontSizeValueSpan = document.getElementById("fontSizeValue");
+                
+                if (fontSizeSlider && fontSizeValueSpan) {
+                    fontSizeSlider.value = savedFontSizeIndex !== -1 ? savedFontSizeIndex : 1;
+                    async function updateFontSize(value) {
+                        const size = fontSizeMap[value];
+                        const text = fontSizeTextMap[value];
+                        document.body.dataset.fontSize = size;
+                        await DBManager.salvarConfiguracao('fontSize', size);
+                        fontSizeValueSpan.textContent = text;
                     }
-                });
-            });
-            
-            const activeBtn = document.querySelector(`.theme-btn[data-theme="${savedTheme}"]`);
-            if (activeBtn) activeBtn.classList.add('active');
-            
-            const fontSizeMap = ["small", "medium", "large", "extra-large", "xx-large", "xxx-large"];
-            const fontSizeTextMap = ["Pequeno", "Médio", "Grande", "Extra Grande", "Extra Extra Grande", "Extra Extra Extra Grande"];
-            const savedFontSize = localStorage.getItem('fontSize') || "medium";
-            const savedFontSizeIndex = fontSizeMap.indexOf(savedFontSize);
-            const fontSizeSlider = document.getElementById("fontSizeSlider");
-            const fontSizeValueSpan = document.getElementById("fontSizeValue");
-            
-            if (fontSizeSlider && fontSizeValueSpan) {
-                fontSizeSlider.value = savedFontSizeIndex !== -1 ? savedFontSizeIndex : 1;
-                function updateFontSize(value) {
-                    const size = fontSizeMap[value];
-                    const text = fontSizeTextMap[value];
-                    document.body.dataset.fontSize = size;
-                    localStorage.setItem('fontSize', size);
-                    fontSizeValueSpan.textContent = text;
+                    await updateFontSize(parseInt(fontSizeSlider.value));
+                    fontSizeSlider.addEventListener("input", (e) => updateFontSize(parseInt(e.target.value)));
                 }
-                updateFontSize(parseInt(fontSizeSlider.value));
-                fontSizeSlider.addEventListener("input", (e) => updateFontSize(parseInt(e.target.value)));
-            }
-            
-            atualizarListaAppsPersonalizados();
-            atualizarListaDespesasPersonalizadas();
-            atualizarInputsApps();
-            atualizarInputsDespesas();
-            calcularPlanejamento();
-            
-            const periodFilter = document.getElementById('periodFilter');
-            const customDateRange = document.getElementById('customDateRange');
-            if (periodFilter && customDateRange) {
-                periodFilter.addEventListener('change', (e) => {
-                    customDateRange.style.display = e.target.value === 'custom' ? 'flex' : 'none';
-                    if (e.target.value !== 'custom') inicializarGraficos();
-                });
-            }
-            
-            document.getElementById('startTimer').onclick = startTimer;
-            document.getElementById('pauseTimer').onclick = pauseTimer;
-            document.getElementById('resetTimer').onclick = resetTimer;
-            updateTimerDisplay();
-            if (timerRunning) {
-                timerInterval = setInterval(updateTimerDisplay, 1000);
-            }
-            
-            atualizarCalendario();
-            atualizarUltimasTransacoes();
-            atualizarTudo();
-            
-            const camposMoeda = ['uber', 'noventaenove', 'indrive', 'particular', 'combustivelValor', 'aluguel', 'alimentacao'];
-            camposMoeda.forEach(id => {
-                const input = document.getElementById(id);
-                if (input) {
-                    input.addEventListener('input', function() {
-                        formatarMoeda(this);
+                
+                // Atualiza listas e inputs personalizados
+                atualizarListaAppsPersonalizados();
+                atualizarListaDespesasPersonalizadas();
+                atualizarInputsApps();
+                atualizarInputsDespesas();
+                calcularPlanejamento();
+                
+                // Configura filtro de período
+                const periodFilter = document.getElementById('periodFilter');
+                const customDateRange = document.getElementById('customDateRange');
+                if (periodFilter && customDateRange) {
+                    periodFilter.addEventListener('change', (e) => {
+                        customDateRange.style.display = e.target.value === 'custom' ? 'flex' : 'none';
+                        if (e.target.value !== 'custom') inicializarGraficos();
                     });
                 }
-            });
+                
+                // Configura timer
+                document.getElementById('startTimer').onclick = startTimer;
+                document.getElementById('pauseTimer').onclick = pauseTimer;
+                document.getElementById('resetTimer').onclick = resetTimer;
+                updateTimerDisplay();
+                if (timerRunning) {
+                    timerInterval = setInterval(updateTimerDisplay, 1000);
+                }
+                
+                // Atualiza interface
+                atualizarCalendario();
+                atualizarUltimasTransacoes();
+                atualizarTudo();
+                
+                // Configura máscara de moeda
+                const camposMoeda = ['uber', 'noventaenove', 'indrive', 'particular', 'combustivelValor', 'aluguel', 'alimentacao'];
+                camposMoeda.forEach(id => {
+                    const input = document.getElementById(id);
+                    if (input) {
+                        input.addEventListener('input', function() {
+                            formatarMoeda(this);
+                        });
+                    }
+                });
+                
+                console.log('✅ DriverFinance Pro inicializado com sucesso!');
+                
+            } catch (error) {
+                console.error('❌ Erro ao inicializar app:', error);
+                mostrarNotificacao('Erro ao carregar dados. Tente recarregar a página.');
+            }
         });
+
+        /**
+         * Carrega todos os dados do banco para as variáveis em memória
+         */
+        async function carregarDadosDoBanco() {
+            console.log('📥 Carregando dados do banco...');
+            
+            // Carrega transações
+            transacoes = await DBManager.buscarTodasTransacoes();
+            
+            // Carrega configurações
+            metaDiaria = parseFloat(await DBManager.buscarConfiguracao('metaDiaria', '0')) || 0;
+            metaPorKm = parseFloat(await DBManager.buscarConfiguracao('metaPorKm', '0')) || 0;
+            metaPorHora = parseFloat(await DBManager.buscarConfiguracao('metaPorHora', '0')) || 0;
+            metaSemanal = parseFloat(await DBManager.buscarConfiguracao('metaSemanal', '0')) || 0;
+            metaMensal = parseFloat(await DBManager.buscarConfiguracao('metaMensal', '0')) || 0;
+            
+            const customAppsStr = await DBManager.buscarConfiguracao('customApps', '[]');
+            customApps = JSON.parse(customAppsStr);
+            
+            const customExpensesStr = await DBManager.buscarConfiguracao('customExpenses', '[]');
+            customExpenses = JSON.parse(customExpensesStr);
+            
+            // Carrega timer
+            const timerData = await DBManager.buscarTimer();
+            startTime = timerData.startTime ? parseInt(timerData.startTime) : null;
+            elapsedSeconds = timerData.elapsedSeconds || 0;
+            timerRunning = timerData.running || false;
+            
+            // Atualiza campos na interface
+            if (metaDiaria > 0) {
+                document.getElementById('metaDiaria').value = metaDiaria.toFixed(2).replace('.', ',');
+            }
+            if (metaPorKm > 0) {
+                document.getElementById('metaPorKm').value = metaPorKm.toFixed(2).replace('.', ',');
+            }
+            if (metaPorHora > 0) {
+                document.getElementById('metaPorHora').value = metaPorHora.toFixed(2).replace('.', ',');
+            }
+            if (metaSemanal > 0) {
+                document.getElementById('metaSemanal').value = metaSemanal.toFixed(2).replace('.', ',');
+            }
+            if (metaMensal > 0) {
+                document.getElementById('metaMensal').value = metaMensal.toFixed(2).replace('.', ',');
+            }
+            
+            console.log(`✅ Dados carregados: ${transacoes.length} transações, ${customApps.length} apps, ${customExpenses.length} despesas`);
+        }
+
+        // ========================================
+        // FUNÇÕES DE FORMATAÇÃO
+        // ========================================
 
         function aplicarMascaraFantasma(input) {
             formatarMoeda(input);
@@ -1382,7 +1795,11 @@
             return parseFloat(valor.replace(/\./g, '').replace(',', '.')) || 0;
         }
 
-        function adicionarAppPersonalizado() {
+        // ========================================
+        // APPS E DESPESAS PERSONALIZADOS
+        // ========================================
+
+        async function adicionarAppPersonalizado() {
             const input = document.getElementById('novoAppInput');
             const nomeApp = input.value.trim();
             if (!nomeApp) {
@@ -1394,16 +1811,16 @@
                 return;
             }
             customApps.push(nomeApp);
-            localStorage.setItem('customApps', JSON.stringify(customApps));
+            await DBManager.salvarConfiguracao('customApps', JSON.stringify(customApps));
             input.value = '';
             atualizarListaAppsPersonalizados();
             atualizarInputsApps();
             mostrarNotificacao(`App "${nomeApp}" adicionado com sucesso!`);
         }
 
-        function removerAppPersonalizado(nomeApp) {
+        async function removerAppPersonalizado(nomeApp) {
             customApps = customApps.filter(app => app !== nomeApp);
-            localStorage.setItem('customApps', JSON.stringify(customApps));
+            await DBManager.salvarConfiguracao('customApps', JSON.stringify(customApps));
             atualizarListaAppsPersonalizados();
             atualizarInputsApps();
             mostrarNotificacao(`App "${nomeApp}" removido`);
@@ -1433,7 +1850,7 @@
             });
         }
 
-        function adicionarDespesaPersonalizada() {
+        async function adicionarDespesaPersonalizada() {
             const input = document.getElementById('novaDespesaInput');
             const nomeDespesa = input.value.trim();
             if (!nomeDespesa) {
@@ -1445,16 +1862,16 @@
                 return;
             }
             customExpenses.push(nomeDespesa);
-            localStorage.setItem('customExpenses', JSON.stringify(customExpenses));
+            await DBManager.salvarConfiguracao('customExpenses', JSON.stringify(customExpenses));
             input.value = '';
             atualizarListaDespesasPersonalizadas();
             atualizarInputsDespesas();
             mostrarNotificacao(`Despesa "${nomeDespesa}" adicionada com sucesso!`);
         }
 
-        function removerDespesaPersonalizada(nomeDespesa) {
+        async function removerDespesaPersonalizada(nomeDespesa) {
             customExpenses = customExpenses.filter(despesa => despesa !== nomeDespesa);
-            localStorage.setItem('customExpenses', JSON.stringify(customExpenses));
+            await DBManager.salvarConfiguracao('customExpenses', JSON.stringify(customExpenses));
             atualizarListaDespesasPersonalizadas();
             atualizarInputsDespesas();
             mostrarNotificacao(`Despesa "${nomeDespesa}" removida`);
@@ -1482,30 +1899,34 @@
             });
         }
 
-        function salvarMetaDiaria() {
+        // ========================================
+        // METAS
+        // ========================================
+
+        async function salvarMetaDiaria() {
             metaDiaria = parseValorMonetario(document.getElementById('metaDiaria').value);
-            localStorage.setItem('metaDiaria', metaDiaria);
+            await DBManager.salvarConfiguracao('metaDiaria', metaDiaria.toString());
             calcularPlanejamento();
             atualizarProgressoMetas();
         }
 
-        function salvarMetaSemanal() {
+        async function salvarMetaSemanal() {
             metaSemanal = parseValorMonetario(document.getElementById('metaSemanal').value);
-            localStorage.setItem('metaSemanal', metaSemanal);
+            await DBManager.salvarConfiguracao('metaSemanal', metaSemanal.toString());
             atualizarProgressoMetas();
         }
 
-        function salvarMetaMensal() {
+        async function salvarMetaMensal() {
             metaMensal = parseValorMonetario(document.getElementById('metaMensal').value);
-            localStorage.setItem('metaMensal', metaMensal);
+            await DBManager.salvarConfiguracao('metaMensal', metaMensal.toString());
             atualizarProgressoMetas();
         }
 
-        function calcularPlanejamento() {
+        async function calcularPlanejamento() {
             metaPorKm = parseValorMonetario(document.getElementById('metaPorKm').value) || 2.00;
             metaPorHora = parseValorMonetario(document.getElementById('metaPorHora').value) || 50;
-            localStorage.setItem('metaPorKm', metaPorKm);
-            localStorage.setItem('metaPorHora', metaPorHora);
+            await DBManager.salvarConfiguracao('metaPorKm', metaPorKm.toString());
+            await DBManager.salvarConfiguracao('metaPorHora', metaPorHora.toString());
             
             const kmNecessarios = metaDiaria > 0 && metaPorKm > 0 ? metaDiaria / metaPorKm : 0.0;
             const horasNecessarias = metaDiaria > 0 && metaPorHora > 0 ? metaDiaria / metaPorHora : 0.0;
@@ -1558,7 +1979,11 @@
                 `${percentualMes.toFixed(1)}% atingido (R$ ${lucroMes.toFixed(2)} / R$ ${metaMensal.toFixed(2)})`;
         }
 
-        function adicionarTransacao() {
+        // ========================================
+        // TRANSAÇÕES
+        // ========================================
+
+        async function adicionarTransacao() {
             const novaTransacao = {
                 data: new Date().toISOString(),
                 uber: parseValorMonetario(document.getElementById('uber').value),
@@ -1598,11 +2023,16 @@
                 novaTransacao.despesasTotal += novaTransacao[despesa] || 0;
             });
 
-            transacoes.unshift(novaTransacao);
-            localStorage.setItem('transacoes', JSON.stringify(transacoes));
-            limparForm();
-            atualizarTudo();
-            mostrarNotificacao('Transação adicionada com sucesso!');
+            try {
+                const id = await DBManager.adicionarTransacao(novaTransacao);
+                novaTransacao.id = id;
+                transacoes.unshift(novaTransacao);
+                limparForm();
+                await atualizarTudo();
+                mostrarNotificacao('Transação adicionada com sucesso!');
+            } catch (error) {
+                mostrarNotificacao('Erro ao adicionar transação. Tente novamente.');
+            }
         }
 
         function limparForm() {
@@ -1628,12 +2058,19 @@
             });
         }
 
-        function excluirTransacao(index) {
-            mostrarConfirmacao('Tem certeza que deseja excluir esta transação?', () => {
-                transacoes.splice(index, 1);
-                localStorage.setItem('transacoes', JSON.stringify(transacoes));
-                atualizarTudo();
-                mostrarNotificacao('Transação excluída com sucesso!');
+        async function excluirTransacao(index) {
+            mostrarConfirmacao('Tem certeza que deseja excluir esta transação?', async () => {
+                try {
+                    const transacao = transacoes[index];
+                    if (transacao.id) {
+                        await DBManager.removerTransacao(transacao.id);
+                    }
+                    transacoes.splice(index, 1);
+                    await atualizarTudo();
+                    mostrarNotificacao('Transação excluída com sucesso!');
+                } catch (error) {
+                    mostrarNotificacao('Erro ao excluir transação. Tente novamente.');
+                }
             });
         }
 
@@ -1686,7 +2123,7 @@
             editingIndex = -1;
         }
 
-        function salvarEdicao() {
+        async function salvarEdicao() {
             if (editingIndex === -1) return;
             
             const transacaoEditada = {
@@ -1730,13 +2167,25 @@
                 transacaoEditada.despesasTotal += transacaoEditada[despesa] || 0;
             });
             
-            transacoes[editingIndex] = transacaoEditada;
-            localStorage.setItem('transacoes', JSON.stringify(transacoes));
-            
-            fecharModalEdicao();
-            atualizarTudo();
-            mostrarNotificacao('Transação editada com sucesso!');
+            try {
+                const transacaoAtual = transacoes[editingIndex];
+                if (transacaoAtual.id) {
+                    await DBManager.atualizarTransacao(transacaoAtual.id, transacaoEditada);
+                    transacaoEditada.id = transacaoAtual.id;
+                }
+                transacoes[editingIndex] = transacaoEditada;
+                
+                fecharModalEdicao();
+                await atualizarTudo();
+                mostrarNotificacao('Transação editada com sucesso!');
+            } catch (error) {
+                mostrarNotificacao('Erro ao editar transação. Tente novamente.');
+            }
         }
+
+        // ========================================
+        // PAINEL E ESTATÍSTICAS
+        // ========================================
 
         function atualizarPainel() {
             const periodos = {
@@ -1922,6 +2371,10 @@
             
             doc.save(`relatorio_ir_${new Date().getFullYear()}.pdf`);
         }
+
+        // ========================================
+        // HISTÓRICO E CALENDÁRIO
+        // ========================================
 
         function atualizarUltimasTransacoes() {
             const ultimasList = document.getElementById('ultimasTransacoesList');
@@ -2115,6 +2568,10 @@
             });
         }
 
+        // ========================================
+        // GRÁFICOS
+        // ========================================
+
         function getFilteredTransactions() {
             const period = document.getElementById('periodFilter').value;
             const dateStart = document.getElementById('dateStart').value ? new Date(document.getElementById('dateStart').value) : null;
@@ -2269,18 +2726,18 @@
             }
         }
 
-        function exportarJSON() {
-            const dados = { 
-                transacoes, 
-                metaDiaria, 
-                metaPorKm, 
-                metaPorHora,
-                metaSemanal,
-                metaMensal,
-                customApps,
-                customExpenses
-            };
-            downloadFile(JSON.stringify(dados, null, 2), 'driverfinance.json', 'application/json');
+        // ========================================
+        // EXPORTAÇÃO E IMPORTAÇÃO
+        // ========================================
+
+        async function exportarJSON() {
+            try {
+                const dados = await DBManager.exportarDados();
+                downloadFile(JSON.stringify(dados, null, 2), 'driverfinance_backup.json', 'application/json');
+                mostrarNotificacao('Backup exportado com sucesso!');
+            } catch (error) {
+                mostrarNotificacao('Erro ao exportar dados');
+            }
         }
 
         function exportarCSV() {
@@ -2332,49 +2789,22 @@
                        'SUBSTITUIRÁ' : 'MESCLARÁ') + ' todos os dados atuais.', importarJSON);
         }
 
-        function importarJSON() {
+        async function importarJSON() {
             const file = document.getElementById('importFile').files[0];
             if (!file) return mostrarNotificacao('Selecione um arquivo JSON.');
             const mode = document.getElementById('importMode').value;
             const reader = new FileReader();
-            reader.onload = (e) => {
+            reader.onload = async (e) => {
                 try {
                     const dados = JSON.parse(e.target.result);
-                    if (mode === 'replace') {
-                        transacoes = dados.transacoes || [];
-                        metaDiaria = dados.metaDiaria || 0;
-                        metaPorKm = dados.metaPorKm || 0;
-                        metaPorHora = dados.metaPorHora || 0;
-                        metaSemanal = dados.metaSemanal || 0;
-                        metaMensal = dados.metaMensal || 0;
-                        customApps = dados.customApps || [];
-                        customExpenses = dados.customExpenses || [];
-                    } else {
-                        transacoes = [...transacoes, ...(dados.transacoes || [])];
-                        metaDiaria = dados.metaDiaria || metaDiaria;
-                        metaPorKm = dados.metaPorKm || metaPorKm;
-                        metaPorHora = dados.metaPorHora || metaPorHora;
-                        metaSemanal = dados.metaSemanal || metaSemanal;
-                        metaMensal = dados.metaMensal || metaMensal;
-                        customApps = [...new Set([...customApps, ...(dados.customApps || [])])];
-                        customExpenses = [...new Set([...customExpenses, ...(dados.customExpenses || [])])];
-                    }
-                    
-                    localStorage.setItem('transacoes', JSON.stringify(transacoes));
-                    localStorage.setItem('metaDiaria', metaDiaria);
-                    localStorage.setItem('metaPorKm', metaPorKm);
-                    localStorage.setItem('metaPorHora', metaPorHora);
-                    localStorage.setItem('metaSemanal', metaSemanal);
-                    localStorage.setItem('metaMensal', metaMensal);
-                    localStorage.setItem('customApps', JSON.stringify(customApps));
-                    localStorage.setItem('customExpenses', JSON.stringify(customExpenses));
-                   
+                    await DBManager.importarDados(dados, mode);
+                    await carregarDadosDoBanco();
                     atualizarListaAppsPersonalizados();
                     atualizarListaDespesasPersonalizadas();
                     atualizarInputsApps();
                     atualizarInputsDespesas();
                     calcularPlanejamento();
-                    atualizarTudo();
+                    await atualizarTudo();
                     mostrarNotificacao('Dados importados com sucesso!');
                 } catch (err) {
                     mostrarNotificacao('Erro ao importar. Verifique o arquivo.');
@@ -2383,33 +2813,36 @@
             reader.readAsText(file);
         }
 
-        function downloadBackup() {
-            exportarJSON();
+        async function downloadBackup() {
+            await exportarJSON();
         }
 
         function apagarTudo() {
             mostrarConfirmacao('ATENÇÃO: Isso apagará TODOS os dados. Confirma?', confirmarApagar);
         }
         
-        function confirmarApagar() {
-            transacoes = [];
-            metaDiaria = 0;
-            metaPorKm = 0;
-            metaPorHora = 0;
-            metaSemanal = 0;
-            metaMensal = 0;
-            customApps = [];
-            customExpenses = [];
-            
-            localStorage.clear();
-            
-            atualizarListaAppsPersonalizados();
-            atualizarListaDespesasPersonalizadas();
-            atualizarInputsApps();
-            atualizarInputsDespesas();
-            calcularPlanejamento();
-            mostrarNotificacao('Dados apagados com sucesso!');
-            atualizarTudo();
+        async function confirmarApagar() {
+            try {
+                await DBManager.apagarTodosBancoDados();
+                transacoes = [];
+                metaDiaria = 0;
+                metaPorKm = 0;
+                metaPorHora = 0;
+                metaSemanal = 0;
+                metaMensal = 0;
+                customApps = [];
+                customExpenses = [];
+                
+                atualizarListaAppsPersonalizados();
+                atualizarListaDespesasPersonalizadas();
+                atualizarInputsApps();
+                atualizarInputsDespesas();
+                calcularPlanejamento();
+                mostrarNotificacao('Dados apagados com sucesso!');
+                await atualizarTudo();
+            } catch (error) {
+                mostrarNotificacao('Erro ao apagar dados');
+            }
         }
 
         function downloadFile(content, filename, mime) {
@@ -2422,7 +2855,7 @@
             URL.revokeObjectURL(url);
         }
 
-        function atualizarTudo() {
+        async function atualizarTudo() {
             atualizarPainel();
             if (document.getElementById('estatisticas').classList.contains('active')) {
                 inicializarGraficos();
@@ -2430,6 +2863,10 @@
             atualizarUltimasTransacoes();
             if (selectedDate) carregarTransacoesDia();
         }
+
+        // ========================================
+        // TIMER
+        // ========================================
 
         function formatTime(seconds) {
             const hours = Math.floor(seconds / 3600).toString().padStart(2, '0');
@@ -2445,20 +2882,23 @@
             document.getElementById('timerDisplay').textContent = formatTime(totalSeconds);
         }
 
-        function startTimer() {
+        async function startTimer() {
             if (timerRunning) return;
             
             timerRunning = true;
             startTime = Date.now();
-            localStorage.setItem('timerStartTimeDF', startTime.toString());
-            localStorage.setItem('timerRunningDF', 'true');
+            await DBManager.salvarTimer({
+                startTime: startTime.toString(),
+                elapsedSeconds,
+                running: true
+            });
             
             timerInterval = setInterval(updateTimerDisplay, 1000);
             updateTimerDisplay();
             mostrarNotificacao('Timer iniciado!');
         }
 
-        function pauseTimer() {
+        async function pauseTimer() {
             if (!timerRunning) return;
             
             timerRunning = false;
@@ -2470,15 +2910,17 @@
                 startTime = null;
             }
             
-            localStorage.setItem('timerElapsedDF', elapsedSeconds.toString());
-            localStorage.removeItem('timerStartTimeDF');
-            localStorage.setItem('timerRunningDF', 'false');
+            await DBManager.salvarTimer({
+                startTime: null,
+                elapsedSeconds,
+                running: false
+            });
             
             updateTimerDisplay();
             mostrarNotificacao('Timer pausado!');
         }
 
-        function resetTimer() {
+        async function resetTimer() {
             const wasRunning = timerRunning;
             
             if (timerRunning) {
@@ -2500,13 +2942,19 @@
             elapsedSeconds = 0;
             startTime = null;
             
-            localStorage.removeItem('timerElapsedDF');
-            localStorage.removeItem('timerStartTimeDF');
-            localStorage.setItem('timerRunningDF', 'false');
+            await DBManager.salvarTimer({
+                startTime: null,
+                elapsedSeconds: 0,
+                running: false
+            });
             
             updateTimerDisplay();
             mostrarNotificacao(`Jornada finalizada: ${horasDecimais} horas trabalhadas.`);
         }
+
+        // ========================================
+        // INTERFACE
+        // ========================================
 
         function mostrarNotificacao(texto) {
             const notification = document.getElementById('metaNotification');
