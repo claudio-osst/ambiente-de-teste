@@ -147,8 +147,8 @@
             --accent-lightest: #c3a8f1;
         }
 		header { 
-			background: var(--bg-secondary); 
-			padding: 1rem; 
+            background: var(--bg-secondary); 
+            padding: 1.5rem 1rem 1rem 1rem;
 			padding-top: 2rem;
 			text-align: center; 
 			border-bottom: 1px solid var(--border); 
@@ -1479,6 +1479,33 @@
             <p>DriverFinance Pro | desenvolvido por Claudio Gomes</p>
         </footer>
     </main>
+	
+	<div id="loginModal" class="modal" style="display: flex;">
+        <div class="modal-content" style="max-width: 400px;">
+            <div class="modal-header">
+                <h2>🚗 Bem-vindo ao DriverFinance Pro!</h2>
+            </div>
+            <p style="text-align: center; margin-bottom: 1.5rem; color: var(--text-secondary);">
+                Cadastre-se para iniciar seu período de teste gratuito de 7 dias
+            </p>
+            <form id="loginForm" onsubmit="realizarCadastro(event)">
+                <label>Nome completo:</label>
+                <input type="text" id="loginNome" required placeholder="Digite seu nome">
+                
+                <label>Email:</label>
+                <input type="email" id="loginEmail" required placeholder="seu@email.com">
+                
+                <label>Celular:</label>
+                <input type="tel" id="loginCelular" required placeholder="(00) 00000-0000">
+                
+                <div style="margin-top: 1.5rem;">
+                    <button type="submit" style="width: 100%;">Começar Teste Gratuito</button>
+                </div>
+                
+                <p id="loginMensagem" style="margin-top: 1rem; text-align: center; color: var(--accent);"></p>
+            </form>
+        </div>
+    </div>
 
     <div id="editModal" class="modal">
         <div class="modal-content">
@@ -1519,7 +1546,13 @@
                         <div id="editExpensesInputsContainer"></div>
                     </div>
                 </div>
-                <div style="margin-top: 1
+                <div style="margin-top: 1.5rem; display: flex; gap: 1rem; flex-wrap: wrap;">
+                    <button type="button" onclick="salvarEdicao()">Salvar Edição</button>
+                    <button type="button" onclick="fecharModalEdicao()" class="danger">Cancelar</button>
+                </div>
+            </form>
+        </div>
+    </div>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 	<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -1847,6 +1880,110 @@
                 }
             }
         };
+		
+		// ========================================
+        // SISTEMA DE AUTENTICAÇÃO
+        // ========================================
+        
+        const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8PhppYafZH7tblURwa12g642NlG-pRZjftVhNI-cIgTENcr3nfWZJ2iDzW4nD__QsBg/exec'; // SUBSTITUA pela sua URL do Google Apps Script
+        
+        async function verificarAutenticacao() {
+            const userEmail = await DBManager.buscarConfiguracao('userEmail');
+            
+            if (!userEmail) {
+                // Primeira vez - mostra modal de cadastro
+                document.getElementById('loginModal').style.display = 'flex';
+                return false;
+            }
+            
+            // Verifica se ainda está ativo
+            try {
+                const response = await fetch(`${GOOGLE_SCRIPT_URL}?email=${encodeURIComponent(userEmail)}`);
+                const result = await response.json();
+                
+                if (result.success && result.ativo) {
+                    // Usuário ativo - libera o app
+                    document.getElementById('loginModal').style.display = 'none';
+                    return true;
+                } else {
+                    // Trial expirado
+                    mostrarTelaExpiracao(result.nome || 'Usuário');
+                    return false;
+                }
+            } catch (error) {
+                console.error('Erro ao verificar autenticação:', error);
+                // Em caso de erro, deixa usar (modo offline)
+                document.getElementById('loginModal').style.display = 'none';
+                return true;
+            }
+        }
+        
+        async function realizarCadastro(event) {
+            event.preventDefault();
+            
+            const nome = document.getElementById('loginNome').value.trim();
+            const email = document.getElementById('loginEmail').value.trim();
+            const celular = document.getElementById('loginCelular').value.trim();
+            const mensagemEl = document.getElementById('loginMensagem');
+            
+            mensagemEl.textContent = 'Realizando cadastro...';
+            mensagemEl.style.color = 'var(--accent)';
+            
+            try {
+                const response = await fetch(GOOGLE_SCRIPT_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ nome, email, celular })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    // Salva email localmente
+                    await DBManager.salvarConfiguracao('userEmail', email);
+                    await DBManager.salvarConfiguracao('userName', nome);
+                    
+                    mensagemEl.textContent = '✅ Cadastro realizado! Bem-vindo!';
+                    mensagemEl.style.color = '#28a745';
+                    
+                    setTimeout(() => {
+                        document.getElementById('loginModal').style.display = 'none';
+                    }, 1500);
+                } else {
+                    mensagemEl.textContent = '❌ ' + result.message;
+                    mensagemEl.style.color = '#ff4444';
+                }
+            } catch (error) {
+                console.error('Erro ao cadastrar:', error);
+                mensagemEl.textContent = '❌ Erro ao conectar. Tente novamente.';
+                mensagemEl.style.color = '#ff4444';
+            }
+        }
+        
+        function mostrarTelaExpiracao(nome) {
+            const main = document.querySelector('main');
+            main.innerHTML = `
+                <div style="display: flex; align-items: center; justify-content: center; min-height: 80vh; padding: 2rem;">
+                    <div class="card" style="max-width: 500px; text-align: center;">
+                        <h2 style="color: var(--accent); margin-bottom: 1rem;">⏰ Período de Teste Encerrado</h2>
+                        <p style="font-size: 1.2rem; margin-bottom: 1rem;">Olá, ${nome}!</p>
+                        <p style="margin-bottom: 2rem; color: var(--text-secondary);">
+                            Seu período de teste de 7 dias chegou ao fim. 
+                            Para continuar usando o DriverFinance Pro com todos os recursos, 
+                            adquira a versão completa!
+                        </p>
+                        <a href="https://pay.hotmart.com/SEU_LINK_AQUI" target="_blank">
+                            <button style="width: 100%; padding: 1rem; font-size: 1.1rem;">
+                                🔥 Comprar Versão Completa
+                            </button>
+                        </a>
+                        <p style="margin-top: 1rem; font-size: 0.9rem; color: var(--text-secondary);">
+                            Após a compra, baixe a versão premium do aplicativo
+                        </p>
+                    </div>
+                </div>
+            `;
+        }
 
         // ========================================
         // VARIÁVEIS GLOBAIS (Cache em memória)
