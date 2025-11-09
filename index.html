@@ -820,7 +820,6 @@
     <main>
         <section id="painel" class="active">
             <div id="metaNotification">Transação adicionada com sucesso!</div>
-            <div class="meta-timer card" style="text-align:center; margin-bottom: 1.5rem;">
                 <h2>Timer de Jornada</h2>
                 <div id="timerDisplay" style="font-size:2rem; font-weight:bold; margin:10px 0;">00:00:00</div>
                 <div>
@@ -1137,6 +1136,37 @@
                 <h2>🚀 Novidades do DriverFinance Pro</h2>
                 <p>Fique por dentro das atualizações e recursos exclusivos!</p>
             </div>
+			
+		<div class="card">
+				<div class="card-header">
+					<h2>🎬 Vídeos Tutoriais</h2>
+					<p class="data">Publicado em: 08/11/2025</p>
+				</div>
+
+				<div class="videos-container">
+					<div class="video-wrapper">
+						<h3>📌 Tutorial: Novo Recurso X</h3>
+						<div class="video-embed">
+							<iframe 
+								src="https://www.youtube.com/embed/5ZfTObFtHJg" 
+								allowfullscreen
+								allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture">
+							</iframe>
+						</div>
+					</div>
+
+					<div class="video-wrapper">
+						<h3>📌 Dicas e Truques</h3>
+						<div class="video-embed">
+							<iframe 
+								src="https://www.youtube.com/embed/dQw4w9WgXcQ" 
+								allowfullscreen
+								allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture">
+							</iframe>
+						</div>
+					</div>
+				</div>
+			</div>
 
             <div class="card">
                 <h2>📢 Últimas Atualizações</h2>
@@ -1264,6 +1294,7 @@
                 <div style="margin-top: 1
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+	<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.3/jspdf.plugin.autotable.min.js"></script>
     <script>
@@ -1888,16 +1919,20 @@
             });
         }
 
-        function atualizarInputsDespesas() {
-            const container = document.getElementById('expensesInputsContainer');
-            container.innerHTML = '';
-            customExpenses.forEach(despesa => {
-                const inputGroup = document.createElement('div');
-                inputGroup.className = 'dynamic-input-group';
-                inputGroup.innerHTML = `<label>${despesa} (R$):</label><input type="text" id="despesa_${despesa.replace(/\s+/g, '_')}" onblur="formatarMoeda(this)" placeholder="0,00">`;
-                container.appendChild(inputGroup);
-            });
-        }
+		function atualizarInputsDespesas() {
+			const container = document.getElementById('expensesInputsContainer');
+			container.innerHTML = '';
+			customExpenses.forEach(despesa => {
+				const inputGroup = document.createElement('div');
+				inputGroup.className = 'dynamic-input-group';
+				inputGroup.innerHTML = `<label>${despesa} (R$):</label><input type="text" id="despesa_${despesa.replace(/\s+/g, '_')}" placeholder="0,00">`;
+				container.appendChild(inputGroup);
+				
+				// Adiciona formatação em tempo real
+				const input = document.getElementById(`despesa_${despesa.replace(/\s+/g, '_')}`);
+				input.oninput = function() { formatarMoeda(this); };
+			});
+		}
 
         // ========================================
         // METAS
