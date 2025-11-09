@@ -2210,41 +2210,64 @@
             document.getElementById('corridasNecessarias').textContent = corridasNecessarias;
         }
         
-        function atualizarProgressoMetas() {
-            const transacoesHoje = transacoes.filter(t => 
-                new Date(t.data).toDateString() === new Date().toDateString()
-            );
-            const lucroHoje = transacoesHoje.reduce((sum, t) => sum + (t.ganhosTotal - t.despesasTotal), 0);
-            const percentualDiario = metaDiaria > 0 ? Math.min((lucroHoje / metaDiaria) * 100, 100) : 0;
-            
-            document.getElementById('progressoDiario').value = percentualDiario;
-            document.getElementById('progressoTextoDiario').textContent = 
-                `${percentualDiario.toFixed(1)}% atingido (R$ ${lucroHoje.toFixed(2)} / R$ ${metaDiaria.toFixed(2)})`;
-            
-            const inicioSemana = new Date();
-            inicioSemana.setDate(inicioSemana.getDate() - inicioSemana.getDay());
-            inicioSemana.setHours(0, 0, 0, 0);
-            const transacoesSemana = transacoes.filter(t => {
-                const dataTransacao = new Date(t.data);
-                dataTransacao.setHours(0, 0, 0, 0);
-                return dataTransacao >= inicioSemana;
-            });
-            const lucroSemana = transacoesSemana.reduce((sum, t) => sum + (t.ganhosTotal - t.despesasTotal), 0);
-            const percentualSemana = metaSemanal > 0 ? Math.min((lucroSemana / metaSemanal) * 100, 100) : 0;
-            
-            document.getElementById('progressoSemanal').value = percentualSemana;
-            document.getElementById('progressoTextoSemanal').textContent = 
-                `${percentualSemana.toFixed(1)}% atingido (R$ ${lucroSemana.toFixed(2)} / R$ ${metaSemanal.toFixed(2)})`;
-            
-            const inicioMes = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
-            const transacoesMes = transacoes.filter(t => new Date(t.data) >= inicioMes);
-            const lucroMes = transacoesMes.reduce((sum, t) => sum + (t.ganhosTotal - t.despesasTotal), 0);
-            const percentualMes = metaMensal > 0 ? Math.min((lucroMes / metaMensal) * 100, 100) : 0;
-            
-            document.getElementById('progressoMensal').value = percentualMes;
-            document.getElementById('progressoTextoMensal').textContent = 
-                `${percentualMes.toFixed(1)}% atingido (R$ ${lucroMes.toFixed(2)} / R$ ${metaMensal.toFixed(2)})`;
-        }
+	function atualizarProgressoMetas() {
+		// META DIÁRIA
+		const transacoesHoje = transacoes.filter(t => 
+			new Date(t.data).toDateString() === new Date().toDateString()
+		);
+		const lucroHoje = transacoesHoje.reduce((sum, t) => sum + (t.ganhosTotal - t.despesasTotal), 0);
+		const percentualDiario = metaDiaria > 0 ? Math.min((lucroHoje / metaDiaria) * 100, 100) : 0;
+		
+		document.getElementById('progressoDiario').value = percentualDiario;
+		document.getElementById('progressoTextoDiario').textContent = 
+			`${percentualDiario.toFixed(1)}% atingido (R$ ${lucroHoje.toFixed(2)} / R$ ${metaDiaria.toFixed(2)})`;
+		
+		console.log('=== META DIÁRIA ===');
+		console.log('Transações hoje:', transacoesHoje.length);
+		console.log('Lucro hoje:', lucroHoje);
+		console.log('Meta diária:', metaDiaria);
+		
+		// META SEMANAL
+		const inicioSemana = new Date();
+		inicioSemana.setDate(inicioSemana.getDate() - inicioSemana.getDay());
+		inicioSemana.setHours(0, 0, 0, 0);
+		
+		const transacoesSemana = transacoes.filter(t => {
+			const dataTransacao = new Date(t.data);
+			dataTransacao.setHours(0, 0, 0, 0);
+			return dataTransacao >= inicioSemana;
+		});
+		const lucroSemana = transacoesSemana.reduce((sum, t) => sum + (t.ganhosTotal - t.despesasTotal), 0);
+		const percentualSemana = metaSemanal > 0 ? Math.min((lucroSemana / metaSemanal) * 100, 100) : 0;
+		
+		console.log('=== META SEMANAL ===');
+		console.log('Início da semana:', inicioSemana.toLocaleDateString());
+		console.log('Transações da semana:', transacoesSemana.length);
+		console.log('Lucro semana:', lucroSemana);
+		console.log('Meta semanal:', metaSemanal);
+		console.log('Percentual:', percentualSemana);
+		
+		document.getElementById('progressoSemanal').value = percentualSemana;
+		document.getElementById('progressoTextoSemanal').textContent = 
+			`${percentualSemana.toFixed(1)}% atingido (R$ ${lucroSemana.toFixed(2)} / R$ ${metaSemanal.toFixed(2)})`;
+		
+		// META MENSAL
+		const inicioMes = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+		const transacoesMes = transacoes.filter(t => new Date(t.data) >= inicioMes);
+		const lucroMes = transacoesMes.reduce((sum, t) => sum + (t.ganhosTotal - t.despesasTotal), 0);
+		const percentualMes = metaMensal > 0 ? Math.min((lucroMes / metaMensal) * 100, 100) : 0;
+		
+		console.log('=== META MENSAL ===');
+		console.log('Início do mês:', inicioMes.toLocaleDateString());
+		console.log('Transações do mês:', transacoesMes.length);
+		console.log('Lucro mês:', lucroMes);
+		console.log('Meta mensal:', metaMensal);
+		console.log('Percentual:', percentualMes);
+		
+		document.getElementById('progressoMensal').value = percentualMes;
+		document.getElementById('progressoTextoMensal').textContent = 
+			`${percentualMes.toFixed(1)}% atingido (R$ ${lucroMes.toFixed(2)} / R$ ${metaMensal.toFixed(2)})`;
+	}
 
         // ========================================
         // TRANSAÇÕES
@@ -3085,7 +3108,7 @@
         }
 
         function apagarTudo() {
-            mostrarConfirmacao('ATENÇÃO: Isso apagará TODOS os dados. Confirma?', confirmarApagar);
+            mostrarConfirmacao('ATENÇÃO: Isso apagará TODOS os dados. Permanecerão apenas os dados que você exportou. Confirma?', confirmarApagar);
         }
         
         async function confirmarApagar() {
@@ -3122,14 +3145,15 @@
             URL.revokeObjectURL(url);
         }
 
-        async function atualizarTudo() {
-            atualizarPainel();
-            if (document.getElementById('estatisticas').classList.contains('active')) {
-                inicializarGraficos();
-            }
-            atualizarUltimasTransacoes();
-            if (selectedDate) carregarTransacoesDia();
-        }
+		async function atualizarTudo() {
+			atualizarPainel();
+			atualizarProgressoMetas();  // ← ADICIONE ESTA LINHA
+			if (document.getElementById('estatisticas').classList.contains('active')) {
+				inicializarGraficos();
+			}
+			atualizarUltimasTransacoes();
+			if (selectedDate) carregarTransacoesDia();
+		}
 
         // ========================================
         // TIMER
@@ -3235,32 +3259,85 @@
             }, 5000);
         }
 
-        function mostrarConfirmacao(mensagem, callback) {
-            const notification = document.getElementById('metaNotification');
-            notification.innerHTML = `
-                <div style="text-align: center;">
-                    <div style="margin-bottom: 1rem;">${mensagem}</div>
-                    <div style="display: flex; gap: 1rem; justify-content: center;">
-                        <button onclick="confirmarAcao(true)" style="background: var(--accent); padding: 0.5rem 1rem; border: none; border-radius: 4px; color: white; cursor: pointer;">Sim</button>
-                        <button onclick="confirmarAcao(false)" style="background: #666; padding: 0.5rem 1rem; border: none; border-radius: 4px; color: white; cursor: pointer;">Não</button>
-                    </div>
-                </div>
-            `;
-            
-            window.confirmarAcao = function(confirmado) {
-                notification.classList.remove('show');
-                if (confirmado && callback) {
-                    callback();
-                }
-                setTimeout(() => {
-                    window.confirmarAcao = null;
-                }, 100);
-            };
-            
-            notification.classList.remove('show');
-            void notification.offsetWidth;
-            notification.classList.add('show');
-        }
+		function mostrarConfirmacao(mensagem, callback) {
+			// Remove modal antigo se existir
+			const modalAntigo = document.getElementById('confirmModal');
+			if (modalAntigo) {
+				modalAntigo.remove();
+			}
+			
+			// Cria novo modal de confirmação
+			const modal = document.createElement('div');
+			modal.id = 'confirmModal';
+			modal.style.cssText = `
+				display: flex;
+				position: fixed;
+				top: 0;
+				left: 0;
+				width: 100%;
+				height: 100%;
+				background: rgba(0,0,0,0.8);
+				z-index: 9999;
+				justify-content: center;
+				align-items: center;
+			`;
+			
+			modal.innerHTML = `
+				<div style="
+					background: var(--card-bg);
+					padding: 2rem;
+					border-radius: 12px;
+					max-width: 400px;
+					width: 90%;
+					text-align: center;
+					box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+				">
+					<h3 style="color: var(--text-primary); margin-bottom: 1rem;">⚠️ Confirmação</h3>
+					<p style="color: var(--text-primary); margin-bottom: 1.5rem;">${mensagem}</p>
+					<div style="display: flex; gap: 1rem; justify-content: center;">
+						<button id="btnConfirmar" style="
+							background: var(--accent);
+							padding: 0.75rem 1.5rem;
+							border: none;
+							border-radius: 8px;
+							color: var(--bg-primary);
+							cursor: pointer;
+							font-weight: bold;
+							font-size: 1rem;
+						">Sim</button>
+						<button id="btnCancelar" style="
+							background: #666;
+							padding: 0.75rem 1.5rem;
+							border: none;
+							border-radius: 8px;
+							color: white;
+							cursor: pointer;
+							font-weight: bold;
+							font-size: 1rem;
+						">Não</button>
+					</div>
+				</div>
+			`;
+			
+			document.body.appendChild(modal);
+			
+			// Adiciona eventos nos botões
+			document.getElementById('btnConfirmar').onclick = function() {
+				modal.remove();
+				if (callback) callback();
+			};
+			
+			document.getElementById('btnCancelar').onclick = function() {
+				modal.remove();
+			};
+			
+			// Fecha ao clicar fora
+			modal.onclick = function(e) {
+				if (e.target === modal) {
+					modal.remove();
+				}
+			};
+		}
 
         function toggleMobileMenu() {
             const nav = document.getElementById('mainNav');
