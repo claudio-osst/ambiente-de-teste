@@ -146,13 +146,14 @@
             --accent-lighter: #a786e1;
             --accent-lightest: #c3a8f1;
         }
-        header { 
-            background: var(--bg-secondary); 
-            padding: 1rem; 
-            text-align: center; 
-            border-bottom: 1px solid var(--border); 
-            position: relative;
-        }
+		header { 
+			background: var(--bg-secondary); 
+			padding: 1rem; 
+			padding-top: 2rem;
+			text-align: center; 
+			border-bottom: 1px solid var(--border); 
+			position: relative;
+		}
         header h1 { color: var(--accent); margin-bottom: 0.5rem; }
         
         .menu-toggle {
@@ -618,26 +619,46 @@
             background: var(--bg-primary);
             color: var(--text-primary);
             font-size: 1rem;
-        }
+}
         
 		@media (max-width: 768px) { 
-					.grid { grid-template-columns: 1fr; } 
-					.menu-toggle { display: flex; align-items: center; justify-content: center; }
-					nav { 
-						flex-direction: column;
-						position: fixed;
-						top: 0;
-						left: -100%;
-						width: 80%;
-						height: 100vh;
-						background: var(--bg-secondary);
-						z-index: 999;
-						transition: left 0.3s ease;
-						padding-top: 4rem;
-					}
-					.videos-container {
-						grid-template-columns: 1fr;
-					}
+			header {
+				padding-top: 2.5rem;
+			}
+			
+			.videos-container {
+				flex-direction: column;
+			}
+			
+			.video-wrapper {
+				width: 100%;
+				min-width: 100%;
+				margin-bottom: 1.5rem;
+			}
+			
+			.parcerias-container {
+				flex-direction: column;
+			}
+			
+			.parceria-card {
+				width: 100%;
+				min-width: 100%;
+			}
+			
+			.grid { grid-template-columns: 1fr; }
+			.menu-toggle { display: flex; align-items: center; justify-content: center; }
+			nav { 
+				flex-direction: column;
+				position: fixed;
+				top: 0;
+				left: -100%;
+				width: 80%;
+				height: 100vh;
+				background: var(--bg-secondary);
+				z-index: 999;
+				transition: left 0.3s ease;
+				padding-top: 4rem;
+			}
 			
 			nav.mobile-open {
 				left: 0;
@@ -695,7 +716,6 @@
 				padding: 0.3rem;
 				font-size: 0.85rem;
 			}
-			
 			.calendar-weekday {
 				padding: 0.3rem;
 				font-size: 0.85rem;
@@ -762,6 +782,76 @@
             color: var(--text-secondary);
             opacity: 0.7;
         }
+		
+				.videos-container {
+			display: flex;
+			gap: 1.5rem;
+			flex-wrap: wrap;
+		}
+
+		.video-wrapper {
+			flex: 1;
+			min-width: 300px;
+		}
+
+		.video-wrapper h3 {
+			color: var(--text-primary);
+			margin-bottom: 1rem;
+		}
+
+		.video-embed {
+			position: relative;
+			padding-bottom: 56.25%;
+			height: 0;
+			overflow: hidden;
+			border-radius: 8px;
+		}
+
+		.video-embed iframe {
+			position: absolute;
+			top: 0;
+			left: 0;
+			width: 100%;
+			height: 100%;
+			border: none;
+			border-radius: 8px;
+		}
+
+		.parcerias-container {
+			display: flex;
+			gap: 1rem;
+			flex-wrap: wrap;
+		}
+
+		.parceria-card {
+			flex: 1;
+			min-width: 200px;
+			background: var(--bg-primary);
+			padding: 1.5rem;
+			border-radius: 8px;
+			text-align: center;
+			border: 1px solid var(--border);
+			transition: transform 0.2s ease;
+		}
+
+		.parceria-card:hover {
+			transform: translateY(-4px);
+			border-color: var(--accent);
+		}
+
+		.parceria-emoji {
+			font-size: 3rem;
+			margin-bottom: 1rem;
+		}
+
+		.parceria-card h3 {
+			color: var(--accent);
+			margin-bottom: 0.5rem;
+		}
+
+		.parceria-card p {
+			color: var(--text-secondary);
+		}
 
         #novidades button {
             color: #000000 !important;
@@ -1918,13 +2008,12 @@
             timerRunning = timerData.running || false;
             
 			// Atualiza campos na interface
-			// Meta Diária NÃO deve persistir - sempre começa zerada
-			// if (metaDiaria > 0) {
-			//     document.getElementById('metaDiaria').value = metaDiaria.toFixed(2).replace('.', ',');
-			// }
-            if (metaPorKm > 0) {
-                document.getElementById('metaPorKm').value = metaPorKm.toFixed(2).replace('.', ',');
-            }
+			if (metaDiaria > 0) {
+				document.getElementById('metaDiaria').value = metaDiaria.toFixed(2).replace('.', ',');
+			}
+			if (metaPorKm > 0) {
+				document.getElementById('metaPorKm').value = metaPorKm.toFixed(2).replace('.', ',');
+			}
             if (metaPorHora > 0) {
                 document.getElementById('metaPorHora').value = metaPorHora.toFixed(2).replace('.', ',');
             }
@@ -2079,8 +2168,7 @@
 
 		async function salvarMetaDiaria() {
 			metaDiaria = parseValorMonetario(document.getElementById('metaDiaria').value);
-			// NÃO salvar no banco - apenas usar na sessão atual
-			// await DBManager.salvarConfiguracao('metaDiaria', metaDiaria.toString());
+		    await DBManager.salvarConfiguracao('metaDiaria', metaDiaria.toString());
 			calcularPlanejamento();
 			atualizarProgressoMetas();
 		}
@@ -2097,7 +2185,7 @@
             atualizarProgressoMetas();
         }
 
-        async function calcularPlanejamento() {
+		async function calcularPlanejamento() {
             metaPorKm = parseValorMonetario(document.getElementById('metaPorKm').value) || 2.00;
             metaPorHora = parseValorMonetario(document.getElementById('metaPorHora').value) || 50;
             await DBManager.salvarConfiguracao('metaPorKm', metaPorKm.toString());
@@ -2117,12 +2205,11 @@
             const corridasPorKm = kmNecessarios > 0 && mediaKmPorCorrida > 0 ? Math.ceil(kmNecessarios / mediaKmPorCorrida) : 0;
             const corridasPorHora = horasNecessarias > 0 && mediaHorasPorCorrida > 0 ? Math.ceil(horasNecessarias / mediaHorasPorCorrida) : 0;
             const corridasNecessarias = Math.max(corridasPorKm, corridasPorHora);
-
             document.getElementById('kmNecessarios').textContent = kmNecessarios.toFixed(1);
             document.getElementById('horasNecessarias').textContent = horasNecessarias.toFixed(1);
             document.getElementById('corridasNecessarias').textContent = corridasNecessarias;
         }
-
+        
         function atualizarProgressoMetas() {
             const transacoesHoje = transacoes.filter(t => 
                 new Date(t.data).toDateString() === new Date().toDateString()
@@ -2133,17 +2220,22 @@
             document.getElementById('progressoDiario').value = percentualDiario;
             document.getElementById('progressoTextoDiario').textContent = 
                 `${percentualDiario.toFixed(1)}% atingido (R$ ${lucroHoje.toFixed(2)} / R$ ${metaDiaria.toFixed(2)})`;
-
+            
             const inicioSemana = new Date();
             inicioSemana.setDate(inicioSemana.getDate() - inicioSemana.getDay());
-            const transacoesSemana = transacoes.filter(t => new Date(t.data) >= inicioSemana);
+            inicioSemana.setHours(0, 0, 0, 0);
+            const transacoesSemana = transacoes.filter(t => {
+                const dataTransacao = new Date(t.data);
+                dataTransacao.setHours(0, 0, 0, 0);
+                return dataTransacao >= inicioSemana;
+            });
             const lucroSemana = transacoesSemana.reduce((sum, t) => sum + (t.ganhosTotal - t.despesasTotal), 0);
             const percentualSemana = metaSemanal > 0 ? Math.min((lucroSemana / metaSemanal) * 100, 100) : 0;
             
             document.getElementById('progressoSemanal').value = percentualSemana;
             document.getElementById('progressoTextoSemanal').textContent = 
                 `${percentualSemana.toFixed(1)}% atingido (R$ ${lucroSemana.toFixed(2)} / R$ ${metaSemanal.toFixed(2)})`;
-
+            
             const inicioMes = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
             const transacoesMes = transacoes.filter(t => new Date(t.data) >= inicioMes);
             const lucroMes = transacoesMes.reduce((sum, t) => sum + (t.ganhosTotal - t.despesasTotal), 0);
