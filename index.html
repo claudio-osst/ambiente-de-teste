@@ -620,62 +620,96 @@
             font-size: 1rem;
         }
         
-        @media (max-width: 768px) { 
-            .grid { grid-template-columns: 1fr; } 
-            .menu-toggle { display: flex; align-items: center; justify-content: center; }
-            nav { 
-                flex-direction: column;
-                position: fixed;
-                top: 0;
-                left: -100%;
-                width: 80%;
-                height: 100vh;
-                background: var(--bg-secondary);
-                z-index: 999;
-                transition: left 0.3s ease;
-                padding-top: 4rem;
-            }
-            nav.mobile-open {
-                left: 0;
-            }
-            nav button { 
-                flex: none; 
-                padding: 1rem; 
-                font-size: 1.1rem; 
-                text-align: left;
-                border-bottom: 1px solid var(--border);
-            }
-            nav button.active::after {
-                display: none;
-            }
-            .meta-diaria input, .meta-planejamento input, .meta-semanal input, .meta-mensal input { 
-                width: 100%; 
-                margin: 10px 0; 
-                font-size: 2rem;
-            }
-            .filter-container { flex-direction: column; }
-            .button-column-mobile {
-                display: flex;
-                flex-direction: column;
-                gap: 0.5rem;
-            }
-            .button-column-mobile button {
-                width: 100%;
-            }
-            .history-details {
-                grid-template-columns: repeat(2, 1fr);
-            }
-            .chart-container {
-                height: 350px;
-                padding: 0.5rem;
-            }
-            .custom-input-group {
-                flex-direction: column;
-            }
-            .custom-input-group input {
-                width: 100%;
-            }
-        }
+		@media (max-width: 768px) { 
+					.grid { grid-template-columns: 1fr; } 
+					.menu-toggle { display: flex; align-items: center; justify-content: center; }
+					nav { 
+						flex-direction: column;
+						position: fixed;
+						top: 0;
+						left: -100%;
+						width: 80%;
+						height: 100vh;
+						background: var(--bg-secondary);
+						z-index: 999;
+						transition: left 0.3s ease;
+						padding-top: 4rem;
+					}
+					.videos-container {
+						grid-template-columns: 1fr;
+					}
+			
+			nav.mobile-open {
+				left: 0;
+			}
+			nav button { 
+				flex: none; 
+				padding: 1rem; 
+				font-size: 1.1rem; 
+				text-align: left;
+				border-bottom: 1px solid var(--border);
+			}
+			nav button.active::after {
+				display: none;
+			}
+			.meta-diaria input, .meta-planejamento input, .meta-semanal input, .meta-mensal input { 
+				width: 100%; 
+				margin: 10px 0; 
+				font-size: 2rem;
+			}
+			.filter-container { flex-direction: column; }
+			.button-column-mobile {
+				display: flex;
+				flex-direction: column;
+				gap: 0.5rem;
+			}
+			.button-column-mobile button {
+				width: 100%;
+			}
+			.history-details {
+				grid-template-columns: repeat(2, 1fr);
+			}
+			.chart-container {
+				height: 350px;
+				padding: 0.5rem;
+			}
+			.custom-input-group {
+				flex-direction: column;
+			}
+			.custom-input-group input {
+				width: 100%;
+			}
+			
+			/* Ajustes para o calendário em mobile */
+			.calendar-container {
+				padding: 0.5rem;
+				overflow-x: auto;
+			}
+			
+			.calendar-grid {
+				min-width: 280px;
+				gap: 0.15rem;
+			}
+			
+			.calendar-day {
+				padding: 0.3rem;
+				font-size: 0.85rem;
+			}
+			
+			.calendar-weekday {
+				padding: 0.3rem;
+				font-size: 0.85rem;
+			}
+			
+			.calendar-header h3 {
+				font-size: 1rem;
+			}
+			
+			.calendar-header button {
+				padding: 0.3rem 0.6rem;
+				font-size: 1rem;
+			}
+		}
         .theme-btn:hover { transform: scale(1.2); box-shadow: 0 0 8px rgba(0, 0, 0, 0.3); }
         .theme-btn.active { border: 2px solid var(--text-primary); box-shadow: 0 0 10px var(--accent); }
         .btn-custo-km:hover,
@@ -743,6 +777,82 @@
         [data-theme="dark"] #novidades .card[style*="background: linear-gradient"] p {
             color: #ffffff !important;
         }
+		
+		.videos-container {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1.5rem;
+            margin-top: 1rem;
+        }
+
+        .video-wrapper {
+            width: 100%;
+        }
+
+        .video-wrapper h3 {
+            color: var(--accent);
+            margin-bottom: 0.75rem;
+            font-size: 1.1rem;
+        }
+
+        .video-embed {
+            position: relative;
+            padding-bottom: 56.25%;
+            height: 0;
+            overflow: hidden;
+            border-radius: 8px;
+            background: var(--bg-primary);
+        }
+
+        .video-embed iframe {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border: none;
+            border-radius: 8px;
+        }
+		
+		.parcerias-container {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .parceria-card {
+            background: var(--card-bg);
+            padding: 2rem 1rem;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            text-align: center;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .parceria-card:hover {
+            transform: translateY(-5px);
+            border-color: var(--accent);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+        }
+
+        .parceria-emoji {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+
+        .parceria-card h3 {
+            color: var(--accent);
+            margin-bottom: 0.5rem;
+            font-size: 1.2rem;
+        }
+
+        .parceria-card p {
+            color: var(--text-secondary);
+            font-style: italic;
+            opacity: 0.7;
+        }
 
         .aba-custo-km {
             background: none;
@@ -762,13 +872,6 @@
             background: var(--accent);
             color: var(--bg-primary);
             font-weight: bold;
-        }
-
-        button[onclick="adicionarTransacao()"],
-        button[onclick="adicionarDespesaPersonalizada()"] {
-            background: #8A2BE2 !important;
-            color: white !important;
-            border: none !important;
         }
 
         @media (max-width: 480px) {
@@ -818,16 +921,18 @@
     </nav>
 
     <main>
-        <section id="painel" class="active">
-            <div id="metaNotification">Transação adicionada com sucesso!</div>
-                <h2>Timer de Jornada</h2>
-                <div id="timerDisplay" style="font-size:2rem; font-weight:bold; margin:10px 0;">00:00:00</div>
-                <div>
-                    <button id="startTimer">Iniciar</button>
-                    <button id="pauseTimer">Pausar</button>
-                    <button id="resetTimer">Finalizar</button>
-                </div>
-            </div>
+		<section id="painel" class="active">
+			<div id="metaNotification">Transação adicionada com sucesso!</div>
+			
+			<div class="card" style="text-align: center;">
+				<h2>Timer de Jornada</h2>
+				<div id="timerDisplay" style="font-size:2rem; font-weight:bold; margin:10px 0;">00:00:00</div>
+				<div>
+					<button id="startTimer">Iniciar</button>
+					<button id="pauseTimer">Pausar</button>
+					<button id="resetTimer">Finalizar</button>
+				</div>
+			</div>
             
             <div class="meta-diaria card">
                 <h2>Meta Diária Pretendida</h2>
@@ -848,14 +953,27 @@
                         <input type="text" id="metaPorHora" oninput="aplicarMascaraFantasma(this); calcularPlanejamento()" placeholder="0,00">
                     </div>
                 </div>
-                <div style="margin-top: 1rem; padding: 1rem; background: var(--bg-primary); border-radius: 8px;">
-                    <h4 style="color: var(--accent); margin-bottom: 0.5rem;">Para atingir a meta diária:</h4>
-                    <p>Kilômetros necessários: <span id="kmNecessarios">0.0</span></p>
-                    <p>Horas necessárias: <span id="horasNecessarias">0.0</span></p>
-                    <p>Corridas necessárias (estimado): <span id="corridasNecessarias">0</span></p>
-                </div>
-            </div>
-
+			<div style="margin-top: 1rem; padding: 1.5rem; background: var(--bg-primary); border-radius: 8px; border: 2px solid var(--accent);">
+				<h4 style="color: var(--accent); margin-bottom: 1rem; text-align: center;">📊 Para atingir a meta diária</h4>
+				
+				<div style="display: flex; justify-content: space-around; align-items: center; flex-wrap: wrap; gap: 1.5rem;">
+					<div style="text-align: center;">
+						<div style="font-size: 2rem; font-weight: bold; color: var(--accent);" id="kmNecessarios">0.0</div>
+						<div style="font-size: 0.85rem; color: var(--text-secondary);">Kilômetros</div>
+					</div>
+					
+					<div style="text-align: center;">
+						<div style="font-size: 2rem; font-weight: bold; color: var(--accent-light);" id="horasNecessarias">0.0</div>
+						<div style="font-size: 0.85rem; color: var(--text-secondary);">Horas</div>
+					</div>
+					
+					<div style="text-align: center;">
+						<div style="font-size: 2rem; font-weight: bold; color: var(--accent-lighter);" id="corridasNecessarias">0</div>
+						<div style="font-size: 0.85rem; color: var(--text-secondary);">Corridas</div>
+					</div>
+				</div>
+			</div>
+			
             <div class="meta-semanal card">
                 <h2>Meta Semanal</h2>
                 <label>Meta Semanal (R$): <input type="text" id="metaSemanal" oninput="aplicarMascaraFantasma(this); salvarMetaSemanal()" placeholder="0,00"></label>
@@ -1132,51 +1250,71 @@
         </section>
 
         <section id="novidades">
-            <div class="card" style="text-align: center; background: linear-gradient(135deg, var(--accent), var(--accent-light));">
-                <h2>🚀 Novidades do DriverFinance Pro</h2>
-                <p>Fique por dentro das atualizações e recursos exclusivos!</p>
-            </div>
+			<div class="card" style="text-align: center; background: linear-gradient(135deg, var(--accent), var(--accent-light));">
+				<h2 style="color: var(--accent) !important;">🚀 Novidades do DriverFinance Pro</h2>
+				<p>Fique por dentro das atualizações e recursos exclusivos!</p>
+			</div>
 			
 		<div class="card">
-				<div class="card-header">
-					<h2>🎬 Vídeos Tutoriais</h2>
-					<p class="data">Publicado em: 08/11/2025</p>
-				</div>
-
-				<div class="videos-container">
-					<div class="video-wrapper">
-						<h3>📌 Tutorial: Novo Recurso X</h3>
-						<div class="video-embed">
-							<iframe 
-								src="https://www.youtube.com/embed/5ZfTObFtHJg" 
-								allowfullscreen
-								allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture">
-							</iframe>
+						<h2 style="color: var(--accent);">🎬 Vídeos Tutoriais</h2>
+						<p style="color: var(--text-secondary); margin-bottom: 1.5rem;">Publicado em: 08/11/2025</p>
+						
+						<div class="videos-container">
+							<div class="video-wrapper">
+								<h3>📌 Tutorial: Novo Recurso X</h3>
+								<div class="video-embed">
+									<iframe 
+										src="https://www.youtube.com/embed/5ZfTObFtHJg" 
+										allowfullscreen
+										allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture">
+									</iframe>
+								</div>
+							</div>
+							<div class="video-wrapper">
+								<h3>📌 Dicas e Truques</h3>
+								<div class="video-embed">
+									<iframe 
+										src="https://www.youtube.com/embed/dQw4w9WgXcQ" 
+										allowfullscreen
+										allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture">
+									</iframe>
+								</div>
+							</div>
 						</div>
 					</div>
-
-					<div class="video-wrapper">
-						<h3>📌 Dicas e Truques</h3>
-						<div class="video-embed">
-							<iframe 
-								src="https://www.youtube.com/embed/dQw4w9WgXcQ" 
-								allowfullscreen
-								allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture">
-							</iframe>
-						</div>
+					
+<div class="card">
+				<h2 style="color: var(--accent);">🤝 Parcerias e Loja</h2>
+				<p style="color: var(--text-secondary); margin-bottom: 1.5rem;">Produtos e serviços recomendados</p>
+				
+				<div class="parcerias-container">
+					<div class="parceria-card">
+						<div class="parceria-emoji">🛒</div>
+						<h3>Produtos</h3>
+						<p>Em Breve</p>
+					</div>
+					<div class="parceria-card">
+						<div class="parceria-emoji">🤝</div>
+						<h3>Parcerias</h3>
+						<p>Em Breve</p>
+					</div>
+					<div class="parceria-card">
+						<div class="parceria-emoji">💼</div>
+						<h3>Serviços</h3>
+						<p>Em Breve</p>
 					</div>
 				</div>
 			</div>
-
+			
             <div class="card">
-                <h2>📢 Últimas Atualizações</h2>
+                <h2 style="color: var(--accent) !important;">📢 Últimas Atualizações</h2>
                 <div class="update-list">
                     <div class="update-item">
                         <div class="update-badge">NOVO</div>
                         <div class="update-content">
                             <h4>🗄️ Sistema de Banco de Dados IndexedDB</h4>
                             <p>Implementado sistema robusto de armazenamento com Dexie.js para melhor performance e escalabilidade. Seus dados agora são gerenciados de forma mais eficiente!</p>
-                            <small>Lançado em: 08/11/2024</small>
+                            <small>Lançado em: 08/11/2025</small>
                         </div>
                     </div>
                     
@@ -1185,7 +1323,7 @@
                         <div class="update-content">
                             <h4>Calculadora de Imposto de Renda</h4>
                             <p>Agora você pode calcular automaticamente o imposto de renda devido com base nos seus ganhos anuais.</p>
-                            <small>Lançado em: 15/12/2024</small>
+                            <small>Lançado em: 15/10/2025</small>
                         </div>
                     </div>
                     
@@ -1194,7 +1332,7 @@
                         <div class="update-content">
                             <h4>Planejamento de Meta Simplificado</h4>
                             <p>Reorganizamos o planejamento de metas para ser mais intuitivo.</p>
-                            <small>Atualizado em: 10/12/2024</small>
+                            <small>Atualizado em: 10/10/2025</small>
                         </div>
                     </div>
                 </div>
@@ -1779,10 +1917,11 @@
             elapsedSeconds = timerData.elapsedSeconds || 0;
             timerRunning = timerData.running || false;
             
-            // Atualiza campos na interface
-            if (metaDiaria > 0) {
-                document.getElementById('metaDiaria').value = metaDiaria.toFixed(2).replace('.', ',');
-            }
+			// Atualiza campos na interface
+			// Meta Diária NÃO deve persistir - sempre começa zerada
+			// if (metaDiaria > 0) {
+			//     document.getElementById('metaDiaria').value = metaDiaria.toFixed(2).replace('.', ',');
+			// }
             if (metaPorKm > 0) {
                 document.getElementById('metaPorKm').value = metaPorKm.toFixed(2).replace('.', ',');
             }
@@ -1938,12 +2077,13 @@
         // METAS
         // ========================================
 
-        async function salvarMetaDiaria() {
-            metaDiaria = parseValorMonetario(document.getElementById('metaDiaria').value);
-            await DBManager.salvarConfiguracao('metaDiaria', metaDiaria.toString());
-            calcularPlanejamento();
-            atualizarProgressoMetas();
-        }
+		async function salvarMetaDiaria() {
+			metaDiaria = parseValorMonetario(document.getElementById('metaDiaria').value);
+			// NÃO salvar no banco - apenas usar na sessão atual
+			// await DBManager.salvarConfiguracao('metaDiaria', metaDiaria.toString());
+			calcularPlanejamento();
+			atualizarProgressoMetas();
+		}
 
         async function salvarMetaSemanal() {
             metaSemanal = parseValorMonetario(document.getElementById('metaSemanal').value);
